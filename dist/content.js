@@ -23070,17 +23070,13 @@
     body.innerHTML = `
     <section class="tf-manager-auth tf-manager-auth-compact">
       ${auth ? `<div class="tf-manager-user">
-              ${auth.photoURL ? `<img src="${escapeHtml(auth.photoURL)}" alt="" width="24" height="24" />` : ""}
-              <div class="tf-manager-user-meta">
-                <span class="tf-manager-user-name">${escapeHtml(auth.displayName || "Signed in")}</span>
-                <span class="tf-manager-user-email">${escapeHtml(auth.email || "")}</span>
-              </div>
+              ${auth.photoURL ? `<img src="${escapeHtml(auth.photoURL)}" alt="" width="20" height="20" />` : ""}
+              <span class="tf-manager-user-name" title="${escapeHtml(auth.email || "")}">${escapeHtml(
+      auth.displayName || "Signed in"
+    )}</span>
               <button type="button" class="tf-mgr-btn ghost" data-action="signout">Sign out</button>
             </div>` : `<div class="tf-manager-user">
-              <div class="tf-manager-user-meta">
-                <span class="tf-manager-user-name">Not signed in</span>
-                <span class="tf-manager-user-email">Sign in to sync folders</span>
-              </div>
+              <span class="tf-manager-user-name">Not signed in</span>
               <button type="button" class="tf-mgr-btn" data-action="signin">Sign in with Google</button>
             </div>`}
       <div class="tf-manager-status" data-role="status"></div>
@@ -23103,7 +23099,7 @@
       const items = (folder.channelIds || []).map((id) => channels[id]).filter(Boolean);
       const color = folder.color || "#e11d2e";
       return `
-              <article class="tf-manager-folder" data-id="${folder.id}" style="border-color:${escapeHtml(color)}">
+              <article class="tf-manager-folder" data-id="${folder.id}">
                 <header>
                   <span class="tf-folder-icon" style="color:${escapeHtml(color)}">${iconHtml(
         folder.icon || "Folder",
@@ -23111,10 +23107,12 @@
       )}</span>
                   <strong>${escapeHtml(folder.name)}</strong>
                   <span class="tf-mgr-count">${items.length}</span>
-                  <button type="button" class="tf-mgr-btn ghost" data-action="recolor" data-id="${folder.id}">Color</button>
-                  <button type="button" class="tf-mgr-btn ghost" data-action="reicon" data-id="${folder.id}">Icon</button>
-                  <button type="button" class="tf-mgr-btn ghost" data-action="rename" data-id="${folder.id}">Rename</button>
-                  <button type="button" class="tf-mgr-btn danger" data-action="delete" data-id="${folder.id}">Delete</button>
+                  <div class="tf-manager-folder-actions">
+                    <button type="button" class="tf-mgr-btn ghost" data-action="recolor" data-id="${folder.id}">Color</button>
+                    <button type="button" class="tf-mgr-btn ghost" data-action="reicon" data-id="${folder.id}">Icon</button>
+                    <button type="button" class="tf-mgr-btn ghost" data-action="rename" data-id="${folder.id}">Rename</button>
+                    <button type="button" class="tf-mgr-btn danger" data-action="delete" data-id="${folder.id}">Delete</button>
+                  </div>
                 </header>
                 <ul>
                   ${items.length ? items.map((ch) => `<li>${escapeHtml(channelLabel(ch))}</li>`).join("") : `<li class="tf-manager-empty">No channels \u2014 use Add to folder on a channel page</li>`}
