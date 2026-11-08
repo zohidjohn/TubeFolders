@@ -8,11 +8,17 @@
     "build": "node scripts/build.mjs",
     "watch": "node scripts/build.mjs && echo 'Watch: re-run npm run build after edits'"
   },
-  "keywords": ["youtube", "extension", "edge", "folders"],
+  "keywords": [
+    "youtube",
+    "extension",
+    "edge",
+    "folders"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "firebase": "^13.2.0"
+    "firebase": "^13.2.0",
+    "lucide": "^1.69.0"
   },
   "devDependencies": {
     "esbuild": "^0.28.2"

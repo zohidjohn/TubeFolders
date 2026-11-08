@@ -6,10 +6,17 @@ import {
   onLibraryChange,
   getAuthMeta,
 } from '../lib/storage.js';
-import { FOLDER_ICON_NAMES, iconHtml } from '../lib/icons.js';
+import {
+  iconHtml,
+  renderIconPickerHtml,
+  renderColorPickerHtml,
+  searchIcons,
+} from '../lib/icons.js';
 
 const OVERLAY_ID = 'tf-manager-overlay';
 let selectedIcon = 'Folder';
+let selectedColor = '#e11d2e';
+let iconQuery = '';
 let unbound = null;
 
 function escapeHtml(str) {
@@ -35,6 +42,24 @@ function send(type, payload = {}) {
 
 function channelLabel(ch) {
   return ch?.name || ch?.handle || ch?.id || 'Channel';
+}
+
+function refreshIconGrid(overlay) {
+  const grid = overlay.querySelector('[data-role="icon-grid"]');
+  const label = overlay.querySelector('.tf-icon-selected-label');
+  if (!grid) return;
+  const names = searchIcons(iconQuery);
+  grid.innerHTML = names
+    .map(
+      (name) => `
+    <button type="button" class="tf-mgr-icon" data-icon="${name}" aria-selected="${
+      name === selectedIcon
+    }" title="${name}">
+      ${iconHtml(name, 'tf-icon')}
+    </button>`
+    )
+    .join('');
+  if (label) label.innerHTML = `Selected: <strong>${escapeHtml(selectedIcon)}</strong>`;
 }
 
 async function renderBody(overlay) {
@@ -71,16 +96,10 @@ async function renderBody(overlay) {
     <section class="tf-manager-create">
       <h3>New folder</h3>
       <input class="tf-mgr-input" data-role="folder-name" type="text" maxlength="48" placeholder="Folder name" />
-      <div class="tf-mgr-icons" data-role="icon-grid">
-        ${FOLDER_ICON_NAMES.map(
-          (name) => `
-          <button type="button" class="tf-mgr-icon" data-icon="${name}" aria-selected="${
-            name === selectedIcon
-          }" title="${name}">
-            ${iconHtml(name, 'tf-icon')}
-          </button>`
-        ).join('')}
-      </div>
+      <h3>Color</h3>
+      ${renderColorPickerHtml(selectedColor)}
+      <h3>Icon</h3>
+      ${renderIconPickerHtml({ selectedIcon, query: iconQuery })}
       <button type="button" class="tf-mgr-btn" data-action="create">Create folder</button>
     </section>
 
@@ -94,12 +113,18 @@ async function renderBody(overlay) {
                 const items = (folder.channelIds || [])
                   .map((id) => channels[id])
                   .filter(Boolean);
+                const color = folder.color || '#e11d2e';
                 return `
-              <article class="tf-manager-folder" data-id="${folder.id}">
+              <article class="tf-manager-folder" data-id="${folder.id}" style="border-color:${escapeHtml(color)}">
                 <header>
-                  ${iconHtml(folder.icon || 'Folder', 'tf-icon tf-icon-lg')}
+                  <span class="tf-folder-icon" style="color:${escapeHtml(color)}">${iconHtml(
+                    folder.icon || 'Folder',
+                    'tf-icon tf-icon-lg'
+                  )}</span>
                   <strong>${escapeHtml(folder.name)}</strong>
                   <span class="tf-mgr-count">${items.length}</span>
+                  <button type="button" class="tf-mgr-btn ghost" data-action="recolor" data-id="${folder.id}" title="Change color">Color</button>
+                  <button type="button" class="tf-mgr-btn ghost" data-action="reicon" data-id="${folder.id}" title="Change icon">Icon</button>
                   <button type="button" class="tf-mgr-btn ghost" data-action="rename" data-id="${folder.id}">Rename</button>
                   <button type="button" class="tf-mgr-btn danger" data-action="delete" data-id="${folder.id}">Delete</button>
                 </header>
@@ -107,12 +132,9 @@ async function renderBody(overlay) {
                   ${
                     items.length
                       ? items
-                          .map(
-                            (ch) =>
-                              `<li>${escapeHtml(channelLabel(ch))}</li>`
-                          )
+                          .map((ch) => `<li>${escapeHtml(channelLabel(ch))}</li>`)
                           .join('')
-                      : `<li class="tf-manager-empty">No channels — open a channel page to add it</li>`
+                      : `<li class="tf-manager-empty">No channels — use Add to folder on a channel page</li>`
                   }
                 </ul>
               </article>`;
@@ -121,6 +143,14 @@ async function renderBody(overlay) {
       }
     </section>
   `;
+
+  const search = body.querySelector('[data-role="icon-search"]');
+  if (search) {
+    search.addEventListener('input', () => {
+      iconQuery = search.value;
+      refreshIconGrid(overlay);
+    });
+  }
 }
 
 function setStatus(overlay, message, isError = false) {
@@ -153,7 +183,7 @@ async function handleAction(overlay, action, target) {
     if (action === 'create') {
       const input = overlay.querySelector('[data-role="folder-name"]');
       const name = input?.value?.trim() || '';
-      await createFolder({ name, icon: selectedIcon });
+      await createFolder({ name, icon: selectedIcon, color: selectedColor });
       if (input) input.value = '';
       await send('tf-sync');
       setStatus(overlay, 'Folder created');
@@ -167,6 +197,27 @@ async function handleAction(overlay, action, target) {
       await updateFolder(id, { name: next.trim() });
       await send('tf-sync');
       setStatus(overlay, 'Folder renamed');
+      await renderBody(overlay);
+      return;
+    }
+    if (action === 'recolor') {
+      const id = target.dataset.id;
+      const color = prompt('Folder color (hex)', selectedColor);
+      if (!color || !/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(color.trim())) {
+        setStatus(overlay, 'Use a hex color like #e11d2e', true);
+        return;
+      }
+      await updateFolder(id, { color: color.trim() });
+      await send('tf-sync');
+      setStatus(overlay, 'Color updated');
+      await renderBody(overlay);
+      return;
+    }
+    if (action === 'reicon') {
+      const id = target.dataset.id;
+      await updateFolder(id, { icon: selectedIcon });
+      await send('tf-sync');
+      setStatus(overlay, `Icon set to ${selectedIcon}`);
       await renderBody(overlay);
       return;
     }
@@ -205,18 +256,41 @@ export async function openManager() {
       </div>
     `;
     overlay.addEventListener('click', async (e) => {
+      const colorBtn = e.target.closest('[data-color]');
+      if (colorBtn && overlay.contains(colorBtn)) {
+        selectedColor = colorBtn.dataset.color;
+        overlay.querySelectorAll('[data-color]').forEach((btn) => {
+          btn.setAttribute(
+            'aria-selected',
+            btn.dataset.color === selectedColor ? 'true' : 'false'
+          );
+        });
+        const custom = overlay.querySelector('[data-role="color-custom"]');
+        if (custom) custom.value = selectedColor;
+        return;
+      }
+
       const iconBtn = e.target.closest('[data-icon]');
       if (iconBtn && overlay.contains(iconBtn)) {
         selectedIcon = iconBtn.dataset.icon;
-        overlay.querySelectorAll('[data-icon]').forEach((btn) => {
-          btn.setAttribute('aria-selected', btn.dataset.icon === selectedIcon ? 'true' : 'false');
-        });
+        refreshIconGrid(overlay);
         return;
       }
+
       const actionBtn = e.target.closest('[data-action]');
       if (!actionBtn || !overlay.contains(actionBtn)) return;
       await handleAction(overlay, actionBtn.dataset.action, actionBtn);
     });
+
+    overlay.addEventListener('input', (e) => {
+      if (e.target.matches?.('[data-role="color-custom"]')) {
+        selectedColor = e.target.value;
+        overlay.querySelectorAll('[data-color]').forEach((btn) => {
+          btn.setAttribute('aria-selected', 'false');
+        });
+      }
+    });
+
     document.documentElement.appendChild(overlay);
   }
 

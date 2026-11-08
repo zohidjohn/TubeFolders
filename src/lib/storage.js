@@ -63,12 +63,13 @@ export async function upsertChannel(channel) {
   return setLibrary(lib);
 }
 
-export async function createFolder({ name, icon }) {
+export async function createFolder({ name, icon, color }) {
   const lib = await getLibrary();
   const folder = {
     id: createId(),
     name: (name || 'New folder').trim() || 'New folder',
     icon: icon || 'Folder',
+    color: color || '#e11d2e',
     channelIds: [],
   };
   lib.folders.push(folder);

@@ -5,7 +5,11 @@ import {
   downloadBackup,
   importLibraryJson,
 } from '../lib/backup.js';
-import { FOLDER_ICON_NAMES, iconHtml } from '../lib/icons.js';
+import {
+  FOLDER_COLORS,
+  iconHtml,
+  searchIcons,
+} from '../lib/icons.js';
 import {
   getLibrary,
   createFolder,
@@ -28,6 +32,8 @@ const els = {
   folderEmpty: document.getElementById('folder-empty'),
   folderName: document.getElementById('folder-name'),
   iconGrid: document.getElementById('icon-grid'),
+  iconSearch: document.getElementById('icon-search'),
+  colorRow: document.getElementById('color-row'),
   btnCreate: document.getElementById('btn-create'),
   btnExport: document.getElementById('btn-export'),
   btnImport: document.getElementById('btn-import'),
@@ -37,6 +43,7 @@ const els = {
 };
 
 let selectedIcon = 'Folder';
+let selectedColor = '#e11d2e';
 let currentUser = null;
 
 function setStatus(message, isError = false) {
@@ -44,15 +51,30 @@ function setStatus(message, isError = false) {
   els.status.classList.toggle('error', Boolean(isError));
 }
 
+function renderColorRow() {
+  els.colorRow.innerHTML = `
+    ${FOLDER_COLORS.map(
+      (color) => `
+      <button type="button" class="tf-color-swatch" data-color="${color}" aria-selected="${
+        color.toLowerCase() === selectedColor.toLowerCase()
+      }" style="background:${color}" title="${color}"></button>`
+    ).join('')}
+    <input type="color" id="color-custom" value="${selectedColor}" title="Custom color" />
+  `;
+}
+
 function renderIconGrid() {
-  els.iconGrid.innerHTML = FOLDER_ICON_NAMES.map(
-    (name) => `
+  const names = searchIcons(els.iconSearch?.value || '');
+  els.iconGrid.innerHTML = names
+    .map(
+      (name) => `
     <button type="button" class="tf-icon-pick" data-icon="${name}" aria-selected="${
       name === selectedIcon
     }" title="${name}" role="option">
       ${iconHtml(name, 'tf-icon')}
     </button>`
-  ).join('');
+    )
+    .join('');
 }
 
 function renderFolders(library) {
@@ -62,7 +84,10 @@ function renderFolders(library) {
     .map(
       (folder) => `
     <div class="tf-folder-item" data-id="${folder.id}">
-      ${iconHtml(folder.icon || 'Folder', 'tf-icon')}
+      <span style="color:${escapeAttr(folder.color || '#e11d2e')}">${iconHtml(
+        folder.icon || 'Folder',
+        'tf-icon'
+      )}</span>
       <span class="tf-name" title="${escapeAttr(folder.name)}">${escapeHtml(
         folder.name
       )}</span>
@@ -115,10 +140,26 @@ els.iconGrid.addEventListener('click', (e) => {
   renderIconGrid();
 });
 
+els.iconSearch?.addEventListener('input', () => renderIconGrid());
+
+els.colorRow.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-color]');
+  if (!btn) return;
+  selectedColor = btn.dataset.color;
+  renderColorRow();
+});
+
+els.colorRow.addEventListener('input', (e) => {
+  if (e.target.id === 'color-custom') {
+    selectedColor = e.target.value;
+    renderColorRow();
+  }
+});
+
 els.btnCreate.addEventListener('click', async () => {
   try {
     const name = els.folderName.value.trim();
-    await createFolder({ name, icon: selectedIcon });
+    await createFolder({ name, icon: selectedIcon, color: selectedColor });
     els.folderName.value = '';
     setStatus('Folder created');
     if (currentUser) await pushToCloud().catch(() => {});
@@ -230,6 +271,7 @@ async function restoreAuthUi() {
   return null;
 }
 
+renderColorRow();
 renderIconGrid();
 refresh();
 onLibraryChange(() => refresh());

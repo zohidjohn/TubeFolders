@@ -91,9 +91,35 @@
   background: #1a1a1a;
 }
 
+.tf-folder-toggle .tf-folder-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tf-folder-toggle .tf-folder-new {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--tf-folder-color, #e11d2e);
+  color: #0a0a0a;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
 .tf-folder-toggle .tf-chevron {
-  margin-left: auto;
+  margin-left: 4px;
   color: var(--tf-muted);
+}
+
+.tf-channel-link.tf-channel-new span {
+  font-weight: 700;
+  color: #fff;
 }
 
 .tf-folder-channels {
@@ -404,6 +430,75 @@
   margin: 0;
   font-size: 13px;
   color: #9a9a9a;
+}
+
+.tf-icon-search {
+  margin-bottom: 8px;
+}
+
+.tf-icon-selected-label {
+  font-size: 12px;
+  color: #9a9a9a;
+  margin-bottom: 10px;
+}
+
+.tf-color-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.tf-color-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 2px solid #2a2a2a;
+  cursor: pointer;
+  padding: 0;
+}
+
+.tf-color-swatch[aria-selected='true'] {
+  border-color: #f5f5f5;
+}
+
+.tf-color-custom {
+  width: 32px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.tf-add-folder-wrap {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.tf-add-folder-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #2a2a2a;
+  background: #141414;
+  color: #f5f5f5;
+  cursor: pointer;
+}
+
+.tf-add-folder-btn:hover {
+  border-color: #e11d2e;
+  color: #fff;
+  background: #1a0a0c;
 }
 
 /* Filed / unfiled markers on YouTube default list */

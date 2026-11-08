@@ -194,3 +194,32 @@ body {
   background: var(--tf-surface);
   border-radius: var(--tf-radius);
 }
+
+.tf-color-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.tf-color-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 2px solid var(--tf-border);
+  cursor: pointer;
+  padding: 0;
+}
+
+.tf-color-swatch[aria-selected='true'] {
+  border-color: var(--tf-text);
+}
+
+#color-custom {
+  width: 28px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--tf-border);
+  border-radius: 4px;
+  background: transparent;
+}

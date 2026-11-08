@@ -1,5 +1,6 @@
 import { getLibrary, onLibraryChange } from '../lib/storage.js';
 import { iconHtml } from '../lib/icons.js';
+import { collectNewChannelIds, countNewInFolder } from '../lib/newness.js';
 import { openManager } from './manager.js';
 
 const SECTION_ID = 'tf-sidebar-section';
@@ -20,7 +21,6 @@ function findSubscriptionsAnchor() {
     if (title.includes('subscription')) return section;
   }
 
-  // Prefer placing near subscription entries rather than the very top of the guide
   const subEntry = [...document.querySelectorAll('a#endpoint, a.yt-simple-endpoint')].find(
     (a) => (a.getAttribute('href') || '').includes('/feed/subscriptions')
   );
@@ -45,7 +45,7 @@ function channelHref(channel) {
   return `https://www.youtube.com/${id}`;
 }
 
-function buildSection(library) {
+function buildSection(library, newIds) {
   const section = document.createElement('div');
   section.id = SECTION_ID;
   section.className = 'tf-root';
@@ -66,28 +66,45 @@ function buildSection(library) {
               const items = (folder.channelIds || [])
                 .map((id) => channels[id])
                 .filter(Boolean);
+              const color = folder.color || '#e11d2e';
+              const newCount = countNewInFolder(folder, channels, newIds);
               return `
-            <div class="tf-folder" data-folder-id="${folder.id}" data-open="false">
+            <div class="tf-folder" data-folder-id="${folder.id}" data-open="false" style="--tf-folder-color:${escapeAttr(color)}">
               <button type="button" class="tf-folder-toggle" aria-expanded="false">
-                ${iconHtml(folder.icon || 'Folder', 'tf-icon')}
-                <span>${escapeHtml(folder.name)}</span>
+                <span class="tf-folder-icon" style="color:${escapeAttr(color)}">${iconHtml(
+                  folder.icon || 'Folder',
+                  'tf-icon'
+                )}</span>
+                <span class="tf-folder-name">${escapeHtml(folder.name)}</span>
+                ${
+                  newCount > 0
+                    ? `<span class="tf-folder-new" title="Channels with new videos" style="background:${escapeAttr(
+                        color
+                      )};color:${contrastText(color)}">${newCount}</span>`
+                    : ''
+                }
                 <span class="tf-chevron">${iconHtml('ChevronRight', 'tf-icon')}</span>
               </button>
               <div class="tf-folder-channels">
                 ${
                   items.length
                     ? items
-                        .map(
-                          (ch) => `
-                  <a class="tf-channel-link" href="${escapeAttr(channelHref(ch))}">
+                        .map((ch) => {
+                          const isNew =
+                            newIds.has(ch.id) ||
+                            (ch.handle && newIds.has(ch.handle));
+                          return `
+                  <a class="tf-channel-link${isNew ? ' tf-channel-new' : ''}" href="${escapeAttr(
+                    channelHref(ch)
+                  )}">
                     ${
                       ch.avatarUrl
                         ? `<img src="${escapeAttr(ch.avatarUrl)}" alt="" width="24" height="24" />`
                         : `<span class="tf-icon">${iconHtml('Folder', 'tf-icon')}</span>`
                     }
                     <span>${escapeHtml(ch.name || ch.handle || ch.id)}</span>
-                  </a>`
-                        )
+                  </a>`;
+                        })
                         .join('')
                     : `<button type="button" class="tf-sidebar-empty tf-sidebar-open">No channels — manage folders</button>`
                 }
@@ -131,6 +148,22 @@ function escapeAttr(str) {
   return escapeHtml(str).replace(/'/g, '&#39;');
 }
 
+function contrastText(hex) {
+  const raw = String(hex || '#e11d2e').replace('#', '');
+  const full =
+    raw.length === 3
+      ? raw
+          .split('')
+          .map((c) => c + c)
+          .join('')
+      : raw.padEnd(6, '0').slice(0, 6);
+  const r = Number.parseInt(full.slice(0, 2), 16) || 0;
+  const g = Number.parseInt(full.slice(2, 4), 16) || 0;
+  const b = Number.parseInt(full.slice(4, 6), 16) || 0;
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum > 0.62 ? '#0a0a0a' : '#ffffff';
+}
+
 export async function renderSidebar() {
   const existing = document.getElementById(SECTION_ID);
   const openFolders = new Set(
@@ -139,7 +172,8 @@ export async function renderSidebar() {
     )
   );
   const library = await getLibrary();
-  const next = buildSection(library);
+  const newIds = collectNewChannelIds();
+  const next = buildSection(library, newIds);
   for (const id of openFolders) {
     const folder = next.querySelector(`.tf-folder[data-folder-id="${id}"]`);
     if (folder) {
