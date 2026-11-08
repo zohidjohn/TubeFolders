@@ -23432,8 +23432,42 @@
   function escapeHtml3(str) {
     return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
-  function findSubscribeHost() {
-    return document.querySelector("ytd-subscribe-button-renderer") || document.querySelector("yt-subscribe-button-view-model") || document.querySelector("#subscribe-button") || document.querySelector("#owner-sub-count")?.parentElement || document.querySelector("#channel-header #buttons") || document.querySelector("#page-header .ytFlexibleActionsViewModelHost") || null;
+  function looksLikeSubscribeControl(el) {
+    if (!el) return false;
+    const text = (el.textContent || "").trim().toLowerCase();
+    const aria = (el.getAttribute?.("aria-label") || "").toLowerCase();
+    const hay = `${text} ${aria}`;
+    return hay.includes("subscribe") || hay.includes("subscribed") || hay.includes("\u043F\u043E\u0434\u043F\u0438\u0441") || // Russian subscribe variants
+    el.tagName?.toLowerCase().includes("subscribe");
+  }
+  function findSubscribeInsertion() {
+    const tagged = document.querySelector("yt-subscribe-button-view-model") || document.querySelector("ytd-subscribe-button-renderer") || document.querySelector("#subscribe-button");
+    if (tagged) {
+      return { anchor: tagged, mode: "after" };
+    }
+    const actions = document.querySelector("yt-flexible-actions-view-model") || document.querySelector(".ytFlexibleActionsViewModelHost") || document.querySelector("#page-header yt-page-header-view-model") || document.querySelector("#inner-header-container #buttons") || document.querySelector("#channel-header-container #buttons");
+    if (actions) {
+      const buttons = [
+        ...actions.querySelectorAll("button, a, yt-button-view-model, .yt-spec-button-shape-next")
+      ];
+      const sub = buttons.find(looksLikeSubscribeControl);
+      if (sub) {
+        const wrap = sub.closest("yt-button-view-model, yt-subscribe-button-view-model, ytd-subscribe-button-renderer") || sub;
+        return { anchor: wrap, mode: "after" };
+      }
+      return { anchor: actions, mode: "append" };
+    }
+    const header = document.querySelector("#page-header") || document.querySelector("ytd-c4-tabbed-header-renderer") || document.querySelector("#channel-header");
+    if (header) {
+      const candidate = [...header.querySelectorAll("button, yt-button-view-model")].find(
+        looksLikeSubscribeControl
+      );
+      if (candidate) {
+        const wrap = candidate.closest("yt-button-view-model, yt-subscribe-button-view-model") || candidate;
+        return { anchor: wrap, mode: "after" };
+      }
+    }
+    return null;
   }
   function removePanel() {
     document.getElementById(PANEL_ID)?.remove();
@@ -23465,7 +23499,7 @@
       )}</span>
           <span>${escapeHtml3(folder.name)}</span>
         </label>`;
-    }).join("") : `<div class="tf-sidebar-empty">Create a folder first \u2014 click TubeFolders in the sidebar.</div>`}
+    }).join("") : `<div class="tf-guide-empty">Create a folder first \u2014 click TubeFolders in the sidebar.</div>`}
     </div>
     <div class="tf-panel-actions">
       <button type="button" class="tf-save">Save</button>
@@ -23523,14 +23557,14 @@
     if (!isChannelPage()) {
       document.getElementById(WRAP_ID)?.remove();
       removePanel();
-      return;
+      return false;
     }
     if (document.getElementById(BTN_ID)) {
       await updateButtonLabel();
-      return;
+      return true;
     }
-    const host = findSubscribeHost();
-    if (!host) return;
+    const spot = findSubscribeInsertion();
+    if (!spot?.anchor) return false;
     const wrap = document.createElement("div");
     wrap.id = WRAP_ID;
     wrap.className = "tf-root tf-add-folder-wrap";
@@ -23544,22 +23578,26 @@
       openAssignPanel(btn);
     });
     wrap.appendChild(btn);
-    if (host.parentElement && host.matches("ytd-subscribe-button-renderer, yt-subscribe-button-view-model, #subscribe-button")) {
-      host.insertAdjacentElement("afterend", wrap);
+    if (spot.mode === "after" && spot.anchor.parentElement) {
+      spot.anchor.insertAdjacentElement("afterend", wrap);
     } else {
-      host.appendChild(wrap);
+      spot.anchor.appendChild(wrap);
     }
     await updateButtonLabel();
+    return true;
   }
   function startChannelPanel() {
     ensureSubscribeButton();
     onLibraryChange(() => {
       ensureSubscribeButton();
-      if (document.getElementById(PANEL_ID)) {
-        const btn = document.getElementById(BTN_ID);
-        if (btn) openAssignPanel(btn);
-      }
     });
+    let tries = 0;
+    const timer = setInterval(() => {
+      tries += 1;
+      ensureSubscribeButton().then((ok) => {
+        if (ok || tries > 40) clearInterval(timer);
+      });
+    }, 500);
   }
   async function refreshChannelPanel() {
     await ensureSubscribeButton();
@@ -23600,6 +23638,7 @@
           renderSidebar();
         }
         highlightSubscriptions();
+        refreshChannelPanel();
       }, 400);
     });
     const start = () => {

@@ -40,6 +40,7 @@ function observeSpa() {
         renderSidebar();
       }
       highlightSubscriptions();
+      refreshChannelPanel();
     }, 400);
   });
 
