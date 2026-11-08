@@ -5,34 +5,53 @@ import { openManager } from './manager.js';
 
 const SECTION_ID = 'tf-sidebar-section';
 
-function findSubscriptionsAnchor() {
-  const entries = [
+function sectionTitleText(section) {
+  return (
+    section.querySelector('#guide-section-title, h3, #header, yt-formatted-string')
+      ?.textContent || ''
+  )
+    .trim()
+    .toLowerCase();
+}
+
+function findGuideSections() {
+  return [
     ...document.querySelectorAll(
       'ytd-guide-section-renderer, yt-guide-section-renderer'
     ),
   ];
-  for (const section of entries) {
-    const title = (
-      section.querySelector('#guide-section-title, h3, #header, yt-formatted-string')
-        ?.textContent || ''
-    )
-      .trim()
-      .toLowerCase();
-    if (title.includes('subscription')) return section;
+}
+
+/** Insert TubeFolders between Subscriptions and You. */
+function placeSection(node) {
+  const sections = findGuideSections();
+  let subscriptions = null;
+  let you = null;
+
+  for (const section of sections) {
+    const title = sectionTitleText(section);
+    if (!subscriptions && title.includes('subscription')) subscriptions = section;
+    // Exact-ish "You" heading (not "Your videos" alone as section in some layouts)
+    if (!you && (title === 'you' || title.startsWith('you'))) you = section;
   }
 
-  const subEntry = [...document.querySelectorAll('a#endpoint, a.yt-simple-endpoint')].find(
-    (a) => (a.getAttribute('href') || '').includes('/feed/subscriptions')
-  );
-  if (subEntry) {
-    return (
-      subEntry.closest('ytd-guide-section-renderer, yt-guide-section-renderer') ||
-      subEntry.closest('#sections') ||
-      subEntry
-    );
+  if (subscriptions?.parentElement) {
+    // After Subscriptions, before whatever follows (usually You)
+    subscriptions.insertAdjacentElement('afterend', node);
+    return true;
   }
 
-  return document.querySelector('#guide-inner-content, ytd-guide-renderer');
+  if (you?.parentElement) {
+    you.parentElement.insertBefore(node, you);
+    return true;
+  }
+
+  const guide = document.querySelector('#guide-inner-content, ytd-guide-renderer #sections');
+  if (guide) {
+    guide.appendChild(node);
+    return true;
+  }
+  return false;
 }
 
 function channelHref(channel) {
@@ -48,27 +67,28 @@ function channelHref(channel) {
 function buildSection(library, newIds) {
   const section = document.createElement('div');
   section.id = SECTION_ID;
-  section.className = 'tf-root';
+  section.className = 'tf-root tf-guide-section';
 
   const folders = library.folders || [];
   const channels = library.channels || {};
 
   section.innerHTML = `
-    <button type="button" class="tf-sidebar-header tf-sidebar-open" title="Manage TubeFolders">
-      <h2 class="tf-sidebar-title"><span class="tf-mark"></span> TubeFolders</h2>
-      <span class="tf-sidebar-edit">${iconHtml('Pencil', 'tf-icon')}</span>
+    <button type="button" class="tf-guide-header tf-sidebar-open" title="Manage TubeFolders">
+      <span class="tf-guide-title">TubeFolders</span>
+      <span class="tf-guide-chevron" aria-hidden="true">&gt;</span>
     </button>
-    ${
-      folders.length === 0
-        ? `<button type="button" class="tf-sidebar-empty tf-sidebar-open">Click to create and manage folders</button>`
-        : folders
-            .map((folder) => {
-              const items = (folder.channelIds || [])
-                .map((id) => channels[id])
-                .filter(Boolean);
-              const color = folder.color || '#e11d2e';
-              const newCount = countNewInFolder(folder, channels, newIds);
-              return `
+    <div class="tf-guide-items">
+      ${
+        folders.length === 0
+          ? `<button type="button" class="tf-guide-empty tf-sidebar-open">Create folders</button>`
+          : folders
+              .map((folder) => {
+                const items = (folder.channelIds || [])
+                  .map((id) => channels[id])
+                  .filter(Boolean);
+                const color = folder.color || '#e11d2e';
+                const newCount = countNewInFolder(folder, channels, newIds);
+                return `
             <div class="tf-folder" data-folder-id="${folder.id}" data-open="false" style="--tf-folder-color:${escapeAttr(color)}">
               <button type="button" class="tf-folder-toggle" aria-expanded="false">
                 <span class="tf-folder-icon" style="color:${escapeAttr(color)}">${iconHtml(
@@ -83,7 +103,7 @@ function buildSection(library, newIds) {
                       )};color:${contrastText(color)}">${newCount}</span>`
                     : ''
                 }
-                <span class="tf-chevron">${iconHtml('ChevronRight', 'tf-icon')}</span>
+                <span class="tf-chevron" aria-hidden="true">&gt;</span>
               </button>
               <div class="tf-folder-channels">
                 ${
@@ -100,19 +120,20 @@ function buildSection(library, newIds) {
                     ${
                       ch.avatarUrl
                         ? `<img src="${escapeAttr(ch.avatarUrl)}" alt="" width="24" height="24" />`
-                        : `<span class="tf-icon">${iconHtml('Folder', 'tf-icon')}</span>`
+                        : `<span class="tf-avatar-fallback"></span>`
                     }
                     <span>${escapeHtml(ch.name || ch.handle || ch.id)}</span>
                   </a>`;
                         })
                         .join('')
-                    : `<button type="button" class="tf-sidebar-empty tf-sidebar-open">No channels — manage folders</button>`
+                    : `<button type="button" class="tf-guide-empty tf-sidebar-open">No channels yet</button>`
                 }
               </div>
             </div>`;
-            })
-            .join('')
-    }
+              })
+              .join('')
+      }
+    </div>
   `;
 
   section.addEventListener('click', (e) => {
@@ -128,9 +149,7 @@ function buildSection(library, newIds) {
     folder.setAttribute('data-open', open ? 'false' : 'true');
     toggle.setAttribute('aria-expanded', open ? 'false' : 'true');
     const chevron = toggle.querySelector('.tf-chevron');
-    if (chevron) {
-      chevron.innerHTML = iconHtml(open ? 'ChevronRight' : 'ChevronDown', 'tf-icon');
-    }
+    if (chevron) chevron.textContent = open ? '>' : '∨';
   });
 
   return section;
@@ -181,25 +200,26 @@ export async function renderSidebar() {
       const toggle = folder.querySelector('.tf-folder-toggle');
       const chevron = folder.querySelector('.tf-chevron');
       if (toggle) toggle.setAttribute('aria-expanded', 'true');
-      if (chevron) chevron.innerHTML = iconHtml('ChevronDown', 'tf-icon');
+      if (chevron) chevron.textContent = '∨';
     }
   }
 
   if (existing) {
     existing.replaceWith(next);
+    // replaceWith keeps position in DOM — good when already placed correctly
+    // If it was in the wrong place (old top), re-place
+    const parent = next.parentElement;
+    const afterSubs =
+      next.previousElementSibling &&
+      sectionTitleText(next.previousElementSibling).includes('subscription');
+    if (!afterSubs) {
+      next.remove();
+      placeSection(next);
+    }
     return;
   }
 
-  const anchor = findSubscriptionsAnchor();
-  if (!anchor) return;
-
-  if (anchor.matches?.('ytd-guide-section-renderer, yt-guide-section-renderer')) {
-    anchor.parentElement?.insertBefore(next, anchor);
-  } else if (anchor.parentElement) {
-    anchor.parentElement.insertBefore(next, anchor);
-  } else {
-    anchor.prepend?.(next);
-  }
+  placeSection(next);
 }
 
 export function startSidebar() {

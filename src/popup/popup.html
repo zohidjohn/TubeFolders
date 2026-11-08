@@ -18,7 +18,8 @@
 
       <section id="auth-signed-out">
         <p class="tf-empty">
-          Sign in with Google to sync folders across devices.
+          Sign in with Google to sync your folders across devices and OS
+          reinstalls.
         </p>
         <button type="button" class="tf-btn" id="btn-signin">
           Sign in with Google
@@ -38,41 +39,19 @@
         </div>
       </section>
 
-      <section>
-        <p class="tf-empty">
-          Manage folders on YouTube: open the sidebar and click
-          <strong>TubeFolders</strong> (same idea as Subscriptions).
-        </p>
+      <section class="tf-info-block">
+        <h2 class="tf-section-title">How to use</h2>
+        <ol class="tf-info-list">
+          <li>Open YouTube and the left sidebar.</li>
+          <li>Find <strong>TubeFolders</strong> under Subscriptions.</li>
+          <li>Click <strong>TubeFolders &gt;</strong> to create folders, icons, and colors.</li>
+          <li>On a channel page, use <strong>Add to folder</strong> next to Subscribe.</li>
+        </ol>
       </section>
 
       <section>
-        <h2 class="tf-section-title">Quick folders</h2>
-        <div id="folder-list" class="tf-folder-list"></div>
-        <p id="folder-empty" class="tf-empty tf-hidden">No folders yet.</p>
-      </section>
-
-      <section class="tf-create-panel">
-        <h2 class="tf-section-title">New folder</h2>
-        <input
-          class="tf-input"
-          id="folder-name"
-          type="text"
-          maxlength="48"
-          placeholder="Folder name"
-        />
-        <h2 class="tf-section-title">Color</h2>
-        <div id="color-row" class="tf-color-row"></div>
-        <h2 class="tf-section-title">Icon</h2>
-        <input
-          class="tf-input"
-          id="icon-search"
-          type="search"
-          placeholder="Search Lucide icons…"
-        />
-        <div id="icon-grid" class="tf-icon-grid" role="listbox" aria-label="Folder icon"></div>
-        <div class="tf-row">
-          <button type="button" class="tf-btn" id="btn-create">Create folder</button>
-        </div>
+        <h2 class="tf-section-title">Status</h2>
+        <p class="tf-empty" id="folder-summary">Loading…</p>
       </section>
 
       <section>

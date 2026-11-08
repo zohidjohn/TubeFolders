@@ -87,13 +87,22 @@ async function openAssignPanel(anchorBtn) {
     </div>
   `;
 
-  // Position near the button when possible
+  // Anchor next to the Add to folder button (never a corner toast)
   const rect = anchorBtn?.getBoundingClientRect?.();
+  panel.style.position = 'fixed';
+  panel.style.bottom = 'auto';
   if (rect) {
-    panel.style.position = 'fixed';
-    panel.style.top = `${Math.min(rect.bottom + 8, window.innerHeight - 320)}px`;
-    panel.style.right = `${Math.max(16, window.innerWidth - rect.right)}px`;
-    panel.style.bottom = 'auto';
+    const top = Math.min(rect.bottom + 8, window.innerHeight - 340);
+    let left = rect.left;
+    if (left + 280 > window.innerWidth - 12) left = window.innerWidth - 292;
+    if (left < 12) left = 12;
+    panel.style.top = `${Math.max(12, top)}px`;
+    panel.style.left = `${left}px`;
+    panel.style.right = 'auto';
+  } else {
+    panel.style.top = '80px';
+    panel.style.left = '50%';
+    panel.style.transform = 'translateX(-50%)';
   }
 
   panel.querySelector('.tf-close').addEventListener('click', removePanel);

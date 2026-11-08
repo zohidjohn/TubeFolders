@@ -2,8 +2,8 @@ html,
 body {
   margin: 0;
   padding: 0;
-  width: 360px;
-  min-height: 420px;
+  width: 340px;
+  min-height: 320px;
   background: var(--tf-bg);
   color: var(--tf-text);
   font-family: var(--tf-font);
@@ -185,14 +185,24 @@ body {
   display: none !important;
 }
 
-.tf-create-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.tf-info-block {
   padding: 10px;
   border: 1px solid var(--tf-border);
   background: var(--tf-surface);
   border-radius: var(--tf-radius);
+}
+
+.tf-info-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--tf-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.tf-info-list strong {
+  color: var(--tf-text);
+  font-weight: 600;
 }
 
 .tf-color-row {

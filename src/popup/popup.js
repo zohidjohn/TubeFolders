@@ -5,20 +5,8 @@ import {
   downloadBackup,
   importLibraryJson,
 } from '../lib/backup.js';
-import {
-  FOLDER_COLORS,
-  iconHtml,
-  searchIcons,
-} from '../lib/icons.js';
-import {
-  getLibrary,
-  createFolder,
-  updateFolder,
-  deleteFolder,
-  onLibraryChange,
-  getAuthMeta,
-} from '../lib/storage.js';
-import { syncLibrary, pullFromCloud, pushToCloud } from '../lib/sync.js';
+import { getLibrary, onLibraryChange, getAuthMeta } from '../lib/storage.js';
+import { syncLibrary, pullFromCloud } from '../lib/sync.js';
 
 const els = {
   signedOut: document.getElementById('auth-signed-out'),
@@ -28,13 +16,7 @@ const els = {
   userEmail: document.getElementById('user-email'),
   btnSignIn: document.getElementById('btn-signin'),
   btnSignOut: document.getElementById('btn-signout'),
-  folderList: document.getElementById('folder-list'),
-  folderEmpty: document.getElementById('folder-empty'),
-  folderName: document.getElementById('folder-name'),
-  iconGrid: document.getElementById('icon-grid'),
-  iconSearch: document.getElementById('icon-search'),
-  colorRow: document.getElementById('color-row'),
-  btnCreate: document.getElementById('btn-create'),
+  folderSummary: document.getElementById('folder-summary'),
   btnExport: document.getElementById('btn-export'),
   btnImport: document.getElementById('btn-import'),
   btnSync: document.getElementById('btn-sync'),
@@ -42,77 +24,11 @@ const els = {
   status: document.getElementById('status'),
 };
 
-let selectedIcon = 'Folder';
-let selectedColor = '#e11d2e';
 let currentUser = null;
 
 function setStatus(message, isError = false) {
   els.status.textContent = message || '';
   els.status.classList.toggle('error', Boolean(isError));
-}
-
-function renderColorRow() {
-  els.colorRow.innerHTML = `
-    ${FOLDER_COLORS.map(
-      (color) => `
-      <button type="button" class="tf-color-swatch" data-color="${color}" aria-selected="${
-        color.toLowerCase() === selectedColor.toLowerCase()
-      }" style="background:${color}" title="${color}"></button>`
-    ).join('')}
-    <input type="color" id="color-custom" value="${selectedColor}" title="Custom color" />
-  `;
-}
-
-function renderIconGrid() {
-  const names = searchIcons(els.iconSearch?.value || '');
-  els.iconGrid.innerHTML = names
-    .map(
-      (name) => `
-    <button type="button" class="tf-icon-pick" data-icon="${name}" aria-selected="${
-      name === selectedIcon
-    }" title="${name}" role="option">
-      ${iconHtml(name, 'tf-icon')}
-    </button>`
-    )
-    .join('');
-}
-
-function renderFolders(library) {
-  const folders = library.folders || [];
-  els.folderEmpty.classList.toggle('tf-hidden', folders.length > 0);
-  els.folderList.innerHTML = folders
-    .map(
-      (folder) => `
-    <div class="tf-folder-item" data-id="${folder.id}">
-      <span style="color:${escapeAttr(folder.color || '#e11d2e')}">${iconHtml(
-        folder.icon || 'Folder',
-        'tf-icon'
-      )}</span>
-      <span class="tf-name" title="${escapeAttr(folder.name)}">${escapeHtml(
-        folder.name
-      )}</span>
-      <span class="tf-count">${(folder.channelIds || []).length}</span>
-      <button type="button" class="tf-btn tf-btn-ghost" data-action="rename" title="Rename">
-        ${iconHtml('Pencil', 'tf-icon')}
-      </button>
-      <button type="button" class="tf-btn tf-btn-danger" data-action="delete" title="Delete">
-        ${iconHtml('Trash2', 'tf-icon')}
-      </button>
-    </div>`
-    )
-    .join('');
-}
-
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function escapeAttr(str) {
-  return escapeHtml(str).replace(/'/g, '&#39;');
 }
 
 function setAuthUi(user) {
@@ -130,68 +46,17 @@ function setAuthUi(user) {
 
 async function refresh() {
   const library = await getLibrary();
-  renderFolders(library);
+  const folders = library.folders || [];
+  const channelCount = Object.keys(library.channels || {}).length;
+  if (!folders.length) {
+    els.folderSummary.textContent =
+      'No folders yet. Create them from the TubeFolders section on YouTube.';
+    return;
+  }
+  els.folderSummary.textContent = `${folders.length} folder${
+    folders.length === 1 ? '' : 's'
+  } · ${channelCount} saved channel${channelCount === 1 ? '' : 's'}`;
 }
-
-els.iconGrid.addEventListener('click', (e) => {
-  const btn = e.target.closest('[data-icon]');
-  if (!btn) return;
-  selectedIcon = btn.dataset.icon;
-  renderIconGrid();
-});
-
-els.iconSearch?.addEventListener('input', () => renderIconGrid());
-
-els.colorRow.addEventListener('click', (e) => {
-  const btn = e.target.closest('[data-color]');
-  if (!btn) return;
-  selectedColor = btn.dataset.color;
-  renderColorRow();
-});
-
-els.colorRow.addEventListener('input', (e) => {
-  if (e.target.id === 'color-custom') {
-    selectedColor = e.target.value;
-    renderColorRow();
-  }
-});
-
-els.btnCreate.addEventListener('click', async () => {
-  try {
-    const name = els.folderName.value.trim();
-    await createFolder({ name, icon: selectedIcon, color: selectedColor });
-    els.folderName.value = '';
-    setStatus('Folder created');
-    if (currentUser) await pushToCloud().catch(() => {});
-    await refresh();
-  } catch (err) {
-    setStatus(err.message || 'Could not create folder', true);
-  }
-});
-
-els.folderList.addEventListener('click', async (e) => {
-  const item = e.target.closest('.tf-folder-item');
-  const btn = e.target.closest('[data-action]');
-  if (!item || !btn) return;
-  const id = item.dataset.id;
-  try {
-    if (btn.dataset.action === 'delete') {
-      if (!confirm('Delete this folder? Channels stay on YouTube.')) return;
-      await deleteFolder(id);
-      setStatus('Folder deleted');
-    }
-    if (btn.dataset.action === 'rename') {
-      const next = prompt('Folder name');
-      if (!next || !next.trim()) return;
-      await updateFolder(id, { name: next.trim() });
-      setStatus('Folder renamed');
-    }
-    if (currentUser) await pushToCloud().catch(() => {});
-    await refresh();
-  } catch (err) {
-    setStatus(err.message || 'Update failed', true);
-  }
-});
 
 els.btnSignIn.addEventListener('click', async () => {
   try {
@@ -236,7 +101,9 @@ els.importFile.addEventListener('change', async () => {
   try {
     const text = await file.text();
     await importLibraryJson(text, { merge: false });
-    if (currentUser) await pushToCloud();
+    if (currentUser) {
+      await chrome.runtime.sendMessage({ type: 'tf-sync' });
+    }
     await refresh();
     setStatus('Backup imported');
   } catch (err) {
@@ -247,7 +114,7 @@ els.importFile.addEventListener('change', async () => {
 els.btnSync.addEventListener('click', async () => {
   try {
     if (!isFirebaseConfigured()) {
-      setStatus('Configure Firebase in src/config.js first', true);
+      setStatus('Firebase is not configured', true);
       return;
     }
     if (!currentUser) {
@@ -271,8 +138,6 @@ async function restoreAuthUi() {
   return null;
 }
 
-renderColorRow();
-renderIconGrid();
 refresh();
 onLibraryChange(() => refresh());
 restoreAuthUi();
@@ -290,7 +155,7 @@ if (isFirebaseConfigured()) {
         await pullFromCloud();
         await refresh();
       } catch {
-        /* offline / rules */
+        /* offline */
       }
     } else {
       const meta = await getAuthMeta();
@@ -298,8 +163,6 @@ if (isFirebaseConfigured()) {
       else setAuthUi(null);
     }
   });
-} else {
-  setStatus('Local mode — add Firebase keys in src/config.js to enable cloud sync');
 }
 
 chrome.storage.onChanged.addListener((changes, area) => {

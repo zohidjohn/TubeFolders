@@ -11,84 +11,93 @@
   --tf-radius: 4px;
 }
 
-#tf-sidebar-section {
-  margin: 8px 12px 12px;
-  padding: 0;
-  border: 1px solid var(--tf-border);
-  border-radius: var(--tf-radius);
-  background: var(--tf-surface);
-  overflow: hidden;
+/* Native-looking guide section (between Subscriptions and You) */
+#tf-sidebar-section.tf-guide-section {
+  margin: 12px 0 0;
+  padding: 0 0 8px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
 }
 
-.tf-sidebar-header {
+.tf-guide-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
   width: 100%;
-  padding: 10px 12px;
+  min-height: 40px;
+  padding: 0 24px 0 12px;
   border: none;
-  border-bottom: 1px solid var(--tf-border);
   background: transparent;
-  color: inherit;
-  font: inherit;
+  color: var(--yt-spec-text-primary, #f1f1f1);
+  font-family: 'Roboto', 'Arial', sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 22px;
   cursor: pointer;
   text-align: left;
 }
 
-.tf-sidebar-header:hover {
-  background: #1a1a1a;
+.tf-guide-header:hover {
+  background: var(--yt-spec-10-percent-layer, rgba(255, 255, 255, 0.1));
 }
 
-.tf-sidebar-edit {
-  color: var(--tf-muted);
+.tf-guide-title {
+  flex: 1;
 }
 
-.tf-sidebar-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--tf-text);
-  margin: 0;
+.tf-guide-chevron {
+  color: var(--yt-spec-text-secondary, #aaa);
+  font-size: 16px;
+  line-height: 1;
+  margin-right: 4px;
 }
 
-.tf-sidebar-title .tf-mark {
-  width: 10px;
-  height: 10px;
-  background: var(--tf-accent);
-  border-radius: 2px;
+.tf-guide-empty {
+  display: block;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 24px;
+  border: none;
+  background: transparent;
+  color: var(--yt-spec-text-secondary, #aaa);
+  font-family: 'Roboto', 'Arial', sans-serif;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
 }
 
-.tf-folder {
-  border-top: 1px solid var(--tf-border);
-}
-
-.tf-folder:first-of-type {
-  border-top: none;
+.tf-guide-empty:hover {
+  background: var(--yt-spec-10-percent-layer, rgba(255, 255, 255, 0.1));
+  color: var(--yt-spec-text-primary, #f1f1f1);
 }
 
 .tf-folder-toggle {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 24px;
+  min-height: 40px;
+  padding: 0 12px 0 12px;
   background: transparent;
   border: none;
-  color: var(--tf-text);
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 560;
+  color: var(--yt-spec-text-primary, #f1f1f1);
+  font-family: 'Roboto', 'Arial', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
   cursor: pointer;
   text-align: left;
 }
 
 .tf-folder-toggle:hover {
-  background: #1a1a1a;
+  background: var(--yt-spec-10-percent-layer, rgba(255, 255, 255, 0.1));
+}
+
+.tf-folder-toggle .tf-folder-icon {
+  width: 24px;
+  display: inline-flex;
+  justify-content: center;
 }
 
 .tf-folder-toggle .tf-folder-name {
@@ -103,9 +112,7 @@
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  border-radius: 4px;
-  background: var(--tf-folder-color, #e11d2e);
-  color: #0a0a0a;
+  border-radius: 9px;
   font-size: 11px;
   font-weight: 700;
   line-height: 18px;
@@ -113,69 +120,59 @@
 }
 
 .tf-folder-toggle .tf-chevron {
-  margin-left: 4px;
-  color: var(--tf-muted);
+  width: 24px;
+  text-align: center;
+  color: var(--yt-spec-text-secondary, #aaa);
+  font-size: 14px;
 }
 
 .tf-channel-link.tf-channel-new span {
-  font-weight: 700;
-  color: #fff;
+  font-weight: 500;
+  color: var(--yt-spec-text-primary, #fff);
 }
 
 .tf-folder-channels {
   display: none;
-  padding: 0 8px 8px;
 }
 
 .tf-folder[data-open='true'] .tf-folder-channels {
   display: block;
 }
 
+.tf-folder[data-open='true'] > .tf-folder-toggle .tf-chevron {
+  transform: none;
+}
+
 .tf-channel-link {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  color: var(--tf-text);
+  gap: 24px;
+  min-height: 40px;
+  padding: 0 12px 0 12px;
+  color: var(--yt-spec-text-primary, #f1f1f1);
   text-decoration: none;
-  border-radius: var(--tf-radius);
-  font-size: 13px;
+  font-family: 'Roboto', 'Arial', sans-serif;
+  font-size: 14px;
 }
 
 .tf-channel-link:hover {
-  background: #1a1a1a;
+  background: var(--yt-spec-10-percent-layer, rgba(255, 255, 255, 0.1));
 }
 
-.tf-channel-link img {
+.tf-channel-link img,
+.tf-avatar-fallback {
   width: 24px;
   height: 24px;
-  border-radius: var(--tf-radius);
+  border-radius: 50%;
   object-fit: cover;
-  background: #222;
+  background: #333;
+  flex-shrink: 0;
 }
 
 .tf-channel-link span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.tf-sidebar-empty {
-  display: block;
-  width: 100%;
-  padding: 12px;
-  font-size: 12px;
-  color: var(--tf-muted);
-  background: transparent;
-  border: none;
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.tf-sidebar-empty:hover {
-  color: var(--tf-text);
-  background: #1a1a1a;
 }
 
 /* In-page manager (like a page, not the tiny extension popup) */
@@ -525,19 +522,20 @@ yt-guide-entry-renderer.tf-unfiled {
   opacity: 0.72;
 }
 
-/* Channel page assign panel */
+/* Channel page assign dropdown (anchored to Add button — never corner toast) */
 #tf-channel-panel {
   position: fixed;
-  right: 16px;
-  bottom: 16px;
   z-index: 9999;
   width: 280px;
+  max-height: min(420px, calc(100vh - 24px));
+  overflow: auto;
   background: #0a0a0a;
   border: 1px solid #2a2a2a;
   border-radius: 4px;
   color: #f5f5f5;
   font-family: 'Outfit', sans-serif;
   padding: 12px;
+  box-shadow: none;
 }
 
 #tf-channel-panel h3 {

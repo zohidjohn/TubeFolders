@@ -23207,23 +23207,39 @@
 
   // src/content/sidebar.js
   var SECTION_ID = "tf-sidebar-section";
-  function findSubscriptionsAnchor() {
-    const entries = [
+  function sectionTitleText(section) {
+    return (section.querySelector("#guide-section-title, h3, #header, yt-formatted-string")?.textContent || "").trim().toLowerCase();
+  }
+  function findGuideSections() {
+    return [
       ...document.querySelectorAll(
         "ytd-guide-section-renderer, yt-guide-section-renderer"
       )
     ];
-    for (const section of entries) {
-      const title = (section.querySelector("#guide-section-title, h3, #header, yt-formatted-string")?.textContent || "").trim().toLowerCase();
-      if (title.includes("subscription")) return section;
+  }
+  function placeSection(node) {
+    const sections = findGuideSections();
+    let subscriptions = null;
+    let you = null;
+    for (const section of sections) {
+      const title = sectionTitleText(section);
+      if (!subscriptions && title.includes("subscription")) subscriptions = section;
+      if (!you && (title === "you" || title.startsWith("you"))) you = section;
     }
-    const subEntry = [...document.querySelectorAll("a#endpoint, a.yt-simple-endpoint")].find(
-      (a) => (a.getAttribute("href") || "").includes("/feed/subscriptions")
-    );
-    if (subEntry) {
-      return subEntry.closest("ytd-guide-section-renderer, yt-guide-section-renderer") || subEntry.closest("#sections") || subEntry;
+    if (subscriptions?.parentElement) {
+      subscriptions.insertAdjacentElement("afterend", node);
+      return true;
     }
-    return document.querySelector("#guide-inner-content, ytd-guide-renderer");
+    if (you?.parentElement) {
+      you.parentElement.insertBefore(node, you);
+      return true;
+    }
+    const guide = document.querySelector("#guide-inner-content, ytd-guide-renderer #sections");
+    if (guide) {
+      guide.appendChild(node);
+      return true;
+    }
+    return false;
   }
   function channelHref(channel) {
     if (channel.href) return channel.href;
@@ -23237,15 +23253,16 @@
   function buildSection(library, newIds) {
     const section = document.createElement("div");
     section.id = SECTION_ID;
-    section.className = "tf-root";
+    section.className = "tf-root tf-guide-section";
     const folders = library.folders || [];
     const channels = library.channels || {};
     section.innerHTML = `
-    <button type="button" class="tf-sidebar-header tf-sidebar-open" title="Manage TubeFolders">
-      <h2 class="tf-sidebar-title"><span class="tf-mark"></span> TubeFolders</h2>
-      <span class="tf-sidebar-edit">${iconHtml("Pencil", "tf-icon")}</span>
+    <button type="button" class="tf-guide-header tf-sidebar-open" title="Manage TubeFolders">
+      <span class="tf-guide-title">TubeFolders</span>
+      <span class="tf-guide-chevron" aria-hidden="true">&gt;</span>
     </button>
-    ${folders.length === 0 ? `<button type="button" class="tf-sidebar-empty tf-sidebar-open">Click to create and manage folders</button>` : folders.map((folder) => {
+    <div class="tf-guide-items">
+      ${folders.length === 0 ? `<button type="button" class="tf-guide-empty tf-sidebar-open">Create folders</button>` : folders.map((folder) => {
       const items = (folder.channelIds || []).map((id) => channels[id]).filter(Boolean);
       const color = folder.color || "#e11d2e";
       const newCount = countNewInFolder(folder, channels, newIds);
@@ -23260,7 +23277,7 @@
                 ${newCount > 0 ? `<span class="tf-folder-new" title="Channels with new videos" style="background:${escapeAttr(
         color
       )};color:${contrastText(color)}">${newCount}</span>` : ""}
-                <span class="tf-chevron">${iconHtml("ChevronRight", "tf-icon")}</span>
+                <span class="tf-chevron" aria-hidden="true">&gt;</span>
               </button>
               <div class="tf-folder-channels">
                 ${items.length ? items.map((ch) => {
@@ -23269,13 +23286,14 @@
                   <a class="tf-channel-link${isNew ? " tf-channel-new" : ""}" href="${escapeAttr(
           channelHref(ch)
         )}">
-                    ${ch.avatarUrl ? `<img src="${escapeAttr(ch.avatarUrl)}" alt="" width="24" height="24" />` : `<span class="tf-icon">${iconHtml("Folder", "tf-icon")}</span>`}
+                    ${ch.avatarUrl ? `<img src="${escapeAttr(ch.avatarUrl)}" alt="" width="24" height="24" />` : `<span class="tf-avatar-fallback"></span>`}
                     <span>${escapeHtml2(ch.name || ch.handle || ch.id)}</span>
                   </a>`;
-      }).join("") : `<button type="button" class="tf-sidebar-empty tf-sidebar-open">No channels \u2014 manage folders</button>`}
+      }).join("") : `<button type="button" class="tf-guide-empty tf-sidebar-open">No channels yet</button>`}
               </div>
             </div>`;
     }).join("")}
+    </div>
   `;
     section.addEventListener("click", (e) => {
       if (e.target.closest(".tf-sidebar-open")) {
@@ -23290,9 +23308,7 @@
       folder.setAttribute("data-open", open ? "false" : "true");
       toggle.setAttribute("aria-expanded", open ? "false" : "true");
       const chevron = toggle.querySelector(".tf-chevron");
-      if (chevron) {
-        chevron.innerHTML = iconHtml(open ? "ChevronRight" : "ChevronDown", "tf-icon");
-      }
+      if (chevron) chevron.textContent = open ? ">" : "\u2228";
     });
     return section;
   }
@@ -23328,22 +23344,20 @@
         const toggle = folder.querySelector(".tf-folder-toggle");
         const chevron = folder.querySelector(".tf-chevron");
         if (toggle) toggle.setAttribute("aria-expanded", "true");
-        if (chevron) chevron.innerHTML = iconHtml("ChevronDown", "tf-icon");
+        if (chevron) chevron.textContent = "\u2228";
       }
     }
     if (existing) {
       existing.replaceWith(next);
+      const parent = next.parentElement;
+      const afterSubs = next.previousElementSibling && sectionTitleText(next.previousElementSibling).includes("subscription");
+      if (!afterSubs) {
+        next.remove();
+        placeSection(next);
+      }
       return;
     }
-    const anchor = findSubscriptionsAnchor();
-    if (!anchor) return;
-    if (anchor.matches?.("ytd-guide-section-renderer, yt-guide-section-renderer")) {
-      anchor.parentElement?.insertBefore(next, anchor);
-    } else if (anchor.parentElement) {
-      anchor.parentElement.insertBefore(next, anchor);
-    } else {
-      anchor.prepend?.(next);
-    }
+    placeSection(next);
   }
   function startSidebar() {
     renderSidebar();
@@ -23459,11 +23473,20 @@
     </div>
   `;
     const rect = anchorBtn?.getBoundingClientRect?.();
+    panel.style.position = "fixed";
+    panel.style.bottom = "auto";
     if (rect) {
-      panel.style.position = "fixed";
-      panel.style.top = `${Math.min(rect.bottom + 8, window.innerHeight - 320)}px`;
-      panel.style.right = `${Math.max(16, window.innerWidth - rect.right)}px`;
-      panel.style.bottom = "auto";
+      const top = Math.min(rect.bottom + 8, window.innerHeight - 340);
+      let left = rect.left;
+      if (left + 280 > window.innerWidth - 12) left = window.innerWidth - 292;
+      if (left < 12) left = 12;
+      panel.style.top = `${Math.max(12, top)}px`;
+      panel.style.left = `${left}px`;
+      panel.style.right = "auto";
+    } else {
+      panel.style.top = "80px";
+      panel.style.left = "50%";
+      panel.style.transform = "translateX(-50%)";
     }
     panel.querySelector(".tf-close").addEventListener("click", removePanel);
     panel.querySelector(".tf-save").addEventListener("click", async () => {
