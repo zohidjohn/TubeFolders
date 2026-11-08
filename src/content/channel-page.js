@@ -158,7 +158,7 @@ async function updateButtonLabel(forcedCount) {
       (f.channelIds || []).includes(channel.id)
     ).length;
   }
-  btn.innerHTML = `${iconHtml('FolderPlus', 'tf-icon')} <span>${
+  btn.innerHTML = `${iconHtml('FolderPlus', 'tf-icon')} <span class="tf-add-folder-label">${
     count > 0 ? `Folders (${count})` : 'Add to folder'
   }</span>`;
 }
@@ -197,7 +197,15 @@ export async function ensureSubscribeButton() {
   const btn = document.createElement('button');
   btn.id = BTN_ID;
   btn.type = 'button';
-  btn.className = 'tf-add-folder-btn';
+  // Same yt-spec tonal classes as the Subscribed button
+  btn.className = [
+    'tf-add-folder-btn',
+    'ytSpecButtonShapeNextHost',
+    'ytSpecButtonShapeNextTonal',
+    'ytSpecButtonShapeNextMono',
+    'ytSpecButtonShapeNextSizeM',
+    'ytSpecButtonShapeNextIconLeading',
+  ].join(' ');
   btn.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();

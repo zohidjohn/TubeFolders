@@ -1,6 +1,7 @@
 import { startSidebar, renderSidebar } from './sidebar.js';
 import { startHighlight, highlightSubscriptions } from './highlight.js';
 import { startChannelPanel, refreshChannelPanel } from './channel-page.js';
+import { syncManagerRoute } from './manager.js';
 import { isExtensionAlive } from '../lib/extension.js';
 
 const FONT_URL = isExtensionAlive()
@@ -29,6 +30,7 @@ function refreshAll() {
   renderSidebar();
   highlightSubscriptions();
   refreshChannelPanel();
+  syncManagerRoute();
 }
 
 function observeSpa() {
