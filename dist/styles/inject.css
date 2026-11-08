@@ -479,10 +479,11 @@
   cursor: pointer;
 }
 
+/* Match yt-spec tonal Subscribe button (pill, 40px, rgba white) */
 .tf-add-folder-wrap {
   display: inline-flex;
   align-items: center;
-  margin-left: 8px;
+  margin: 0 0 0 8px;
   vertical-align: middle;
   flex-shrink: 0;
 }
@@ -490,23 +491,29 @@
 .tf-add-folder-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  height: 36px;
+  height: 40px;
   font-family: 'Roboto', 'Arial', sans-serif;
   font-size: 14px;
   font-weight: 500;
+  line-height: 36px;
   padding: 0 16px;
-  border-radius: 18px;
+  border-radius: 20px;
   border: none;
-  background: #272727;
-  color: #f1f1f1;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgb(241, 241, 241);
   cursor: pointer;
   white-space: nowrap;
 }
 
 .tf-add-folder-btn:hover {
-  background: #3f3f3f;
-  color: #fff;
+  background: rgba(255, 255, 255, 0.2);
+  color: rgb(241, 241, 241);
+}
+
+.tf-add-folder-btn:active {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .tf-add-folder-btn .tf-icon {
