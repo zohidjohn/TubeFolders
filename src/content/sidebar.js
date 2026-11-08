@@ -1,6 +1,6 @@
 import { getLibrary, onLibraryChange } from '../lib/storage.js';
 import { iconHtml } from '../lib/icons.js';
-import { collectNewChannelIds, countNewInFolder } from '../lib/newness.js';
+import { collectNewChannelIds } from '../lib/newness.js';
 import { openManager } from './manager.js';
 
 const SECTION_ID = 'tf-sidebar-section';
@@ -113,7 +113,6 @@ function buildSection(library, newIds) {
                   .map((id) => channels[id])
                   .filter(Boolean);
                 const color = folder.color || '#e11d2e';
-                const newCount = countNewInFolder(folder, channels, newIds);
                 return `
             <div class="tf-folder" data-folder-id="${folder.id}" data-open="false" style="--tf-folder-color:${escapeAttr(color)}">
               <button type="button" class="tf-folder-toggle" aria-expanded="false">
@@ -122,13 +121,6 @@ function buildSection(library, newIds) {
                   'tf-icon'
                 )}</span>
                 <span class="tf-folder-name">${escapeHtml(folder.name)}</span>
-                ${
-                  newCount > 0
-                    ? `<span class="tf-folder-new" title="Channels with new videos" style="background:${escapeAttr(
-                        color
-                      )};color:${contrastText(color)}">${newCount}</span>`
-                    : ''
-                }
                 <span class="tf-chevron">${chevronHtml(false)}</span>
               </button>
               <div class="tf-folder-channels">
@@ -192,22 +184,6 @@ function escapeHtml(str) {
 
 function escapeAttr(str) {
   return escapeHtml(str).replace(/'/g, '&#39;');
-}
-
-function contrastText(hex) {
-  const raw = String(hex || '#e11d2e').replace('#', '');
-  const full =
-    raw.length === 3
-      ? raw
-          .split('')
-          .map((c) => c + c)
-          .join('')
-      : raw.padEnd(6, '0').slice(0, 6);
-  const r = Number.parseInt(full.slice(0, 2), 16) || 0;
-  const g = Number.parseInt(full.slice(2, 4), 16) || 0;
-  const b = Number.parseInt(full.slice(4, 6), 16) || 0;
-  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return lum > 0.62 ? '#0a0a0a' : '#ffffff';
 }
 
 export async function renderSidebar() {

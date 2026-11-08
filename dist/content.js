@@ -23035,21 +23035,6 @@
     }
     return ids;
   }
-  function countNewInFolder(folder, channels, newIds) {
-    let count = 0;
-    for (const id of folder.channelIds || []) {
-      if (newIds.has(id)) {
-        count += 1;
-        continue;
-      }
-      const meta = channels[id];
-      if (!meta) continue;
-      if (meta.handle && newIds.has(meta.handle)) count += 1;
-      else if (meta.handle && newIds.has(`@${meta.handle.replace(/^@/, "")}`))
-        count += 1;
-    }
-    return count;
-  }
 
   // src/content/manager.js
   var TF_PATH = "/feed/tubefolders";
@@ -23691,7 +23676,6 @@
       ${folders.length === 0 ? `<button type="button" class="tf-guide-empty tf-sidebar-open">Create folders</button>` : folders.map((folder) => {
       const items = (folder.channelIds || []).map((id) => channels[id]).filter(Boolean);
       const color = folder.color || "#e11d2e";
-      const newCount = countNewInFolder(folder, channels, newIds);
       return `
             <div class="tf-folder" data-folder-id="${folder.id}" data-open="false" style="--tf-folder-color:${escapeAttr(color)}">
               <button type="button" class="tf-folder-toggle" aria-expanded="false">
@@ -23700,9 +23684,6 @@
         "tf-icon"
       )}</span>
                 <span class="tf-folder-name">${escapeHtml2(folder.name)}</span>
-                ${newCount > 0 ? `<span class="tf-folder-new" title="Channels with new videos" style="background:${escapeAttr(
-        color
-      )};color:${contrastText(color)}">${newCount}</span>` : ""}
                 <span class="tf-chevron">${chevronHtml(false)}</span>
               </button>
               <div class="tf-folder-channels">
@@ -23744,15 +23725,6 @@
   }
   function escapeAttr(str) {
     return escapeHtml2(str).replace(/'/g, "&#39;");
-  }
-  function contrastText(hex) {
-    const raw = String(hex || "#e11d2e").replace("#", "");
-    const full = raw.length === 3 ? raw.split("").map((c) => c + c).join("") : raw.padEnd(6, "0").slice(0, 6);
-    const r = Number.parseInt(full.slice(0, 2), 16) || 0;
-    const g = Number.parseInt(full.slice(2, 4), 16) || 0;
-    const b = Number.parseInt(full.slice(4, 6), 16) || 0;
-    const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return lum > 0.62 ? "#0a0a0a" : "#ffffff";
   }
   async function renderSidebar() {
     const existing = document.getElementById(SECTION_ID);
