@@ -64,44 +64,20 @@ function findSubscribeInsertion() {
   return null;
 }
 
-function mastheadBottom() {
-  const masthead =
-    document.querySelector('#masthead-container') ||
-    document.querySelector('ytd-masthead') ||
-    document.querySelector('#header');
-  if (!masthead) return 56;
-  const r = masthead.getBoundingClientRect();
-  return Math.max(0, r.bottom);
-}
-
 function positionPanel(panel, anchorBtn) {
   if (!panel || !anchorBtn?.isConnected) {
     removePanel();
     return;
   }
   const rect = anchorBtn.getBoundingClientRect();
-  // Button fully off-screen → close (don't pin panel to the masthead)
-  if (rect.bottom < 8 || rect.top > window.innerHeight - 8) {
-    removePanel();
-    return;
-  }
-
   const panelW = panel.offsetWidth || 280;
   const panelH = panel.offsetHeight || 200;
   const gap = 8;
   const margin = 12;
-  const headerY = mastheadBottom();
 
-  // Stay glued to the button — never clamp onto the sticky header
   let top = rect.bottom + gap;
   if (top + panelH > window.innerHeight - margin) {
-    top = rect.top - gap - panelH;
-  }
-
-  // If the button is under the masthead, keep following it (panel sits behind header via z-index)
-  // Only nudge below header when the button itself is still below the header
-  if (rect.top >= headerY && top < headerY + 4) {
-    top = headerY + 4;
+    top = Math.max(margin, rect.top - gap - panelH);
   }
 
   let left = rect.left;
@@ -182,7 +158,8 @@ async function openAssignPanel(anchorBtn) {
   document.documentElement.appendChild(panel);
   positionPanel(panel, anchorBtn);
 
-  const onScroll = () => positionPanel(panel, anchorBtn);
+  // Any page scroll closes the panel — don't try to stick to the header
+  const onScroll = () => removePanel();
   const onPointer = (e) => {
     const t = e.target;
     if (!(t instanceof Node)) return;
@@ -194,7 +171,6 @@ async function openAssignPanel(anchorBtn) {
   };
 
   openPanelState = { panel, anchor: anchorBtn, onScroll, onPointer, onKey };
-  // capture scroll so YouTube's nested scroll containers still update position
   window.addEventListener('scroll', onScroll, true);
   window.addEventListener('resize', onScroll);
   // next tick so the opening click does not immediately close
