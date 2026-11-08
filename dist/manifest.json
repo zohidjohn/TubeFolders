@@ -36,7 +36,7 @@
     "https://*.firebaseapp.com/*"
   ],
   "oauth2": {
-    "client_id": "YOUR_OAUTH_CLIENT_ID.apps.googleusercontent.com",
+    "client_id": "1033436935931-3eghs4vuo8krmktffi9band8trj15tso.apps.googleusercontent.com",
     "scopes": [
       "openid",
       "email",

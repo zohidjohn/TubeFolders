@@ -8,7 +8,7 @@ var firebaseConfig = {
   appId: "1:1033436935931:web:64585a0138fccc4286e25e",
   measurementId: "G-ER20Z432MQ"
 };
-var oauthClientId = "YOUR_OAUTH_CLIENT_ID.apps.googleusercontent.com";
+var oauthClientId = "1033436935931-3eghs4vuo8krmktffi9band8trj15tso.apps.googleusercontent.com";
 var isFirebaseConfigured = () => Boolean(
   firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("YOUR_") && oauthClientId && !oauthClientId.startsWith("YOUR_")
 );

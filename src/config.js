@@ -15,7 +15,8 @@ export const firebaseConfig = {
 };
 
 /** Google OAuth 2.0 client ID used with chrome.identity.launchWebAuthFlow */
-export const oauthClientId = 'YOUR_OAUTH_CLIENT_ID.apps.googleusercontent.com';
+export const oauthClientId =
+  '1033436935931-3eghs4vuo8krmktffi9band8trj15tso.apps.googleusercontent.com';
 
 export const isFirebaseConfigured = () =>
   Boolean(
