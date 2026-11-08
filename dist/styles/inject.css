@@ -1051,7 +1051,8 @@ yt-guide-entry-renderer.tf-unfiled {
 /* Channel page assign dropdown — anchored to Add button, follows scroll */
 #tf-channel-panel {
   position: fixed;
-  z-index: 9999;
+  /* Below YouTube masthead (~2020) so the search header always covers the panel */
+  z-index: 1990;
   width: 280px;
   max-height: min(420px, calc(100vh - 24px));
   overflow: auto;

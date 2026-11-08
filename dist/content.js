@@ -23862,21 +23862,34 @@
     }
     return null;
   }
+  function mastheadBottom() {
+    const masthead = document.querySelector("#masthead-container") || document.querySelector("ytd-masthead") || document.querySelector("#header");
+    if (!masthead) return 56;
+    const r = masthead.getBoundingClientRect();
+    return Math.max(0, r.bottom);
+  }
   function positionPanel(panel, anchorBtn) {
     if (!panel || !anchorBtn?.isConnected) {
       removePanel();
       return;
     }
     const rect = anchorBtn.getBoundingClientRect();
+    if (rect.bottom < 8 || rect.top > window.innerHeight - 8) {
+      removePanel();
+      return;
+    }
     const panelW = panel.offsetWidth || 280;
     const panelH = panel.offsetHeight || 200;
     const gap = 8;
     const margin = 12;
+    const headerY = mastheadBottom();
     let top = rect.bottom + gap;
-    if (top + panelH > window.innerHeight - margin && rect.top - gap - panelH > margin) {
+    if (top + panelH > window.innerHeight - margin) {
       top = rect.top - gap - panelH;
     }
-    top = Math.max(margin, Math.min(top, window.innerHeight - panelH - margin));
+    if (rect.top >= headerY && top < headerY + 4) {
+      top = headerY + 4;
+    }
     let left = rect.left;
     if (left + panelW > window.innerWidth - margin) {
       left = window.innerWidth - panelW - margin;
