@@ -115,6 +115,23 @@ export async function setChannelFolders(channel, folderIds) {
   return lib;
 }
 
+/** Move a channel from one folder to another (removes from source, adds to target). */
+export async function moveChannelToFolder(channelId, fromFolderId, toFolderId) {
+  if (!channelId || !toFolderId || fromFolderId === toFolderId) return getLibrary();
+  const lib = await getLibrary();
+  const from = lib.folders.find((f) => f.id === fromFolderId);
+  const to = lib.folders.find((f) => f.id === toFolderId);
+  if (!to) throw new Error('Target folder not found');
+  if (from) {
+    from.channelIds = (from.channelIds || []).filter((id) => id !== channelId);
+  }
+  if (!(to.channelIds || []).includes(channelId)) {
+    to.channelIds = [...(to.channelIds || []), channelId];
+  }
+  await setLibrary(lib);
+  return lib;
+}
+
 export function getFiledChannelIds(library) {
   const ids = new Set();
   for (const folder of library.folders || []) {

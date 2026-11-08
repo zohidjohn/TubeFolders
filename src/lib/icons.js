@@ -27,17 +27,16 @@ export const FOLDER_ICON_NAMES = ALL_ICON_NAMES;
 
 export const FOLDER_COLORS = [
   '#e11d2e',
-  '#f59e0b',
+  '#f97316',
+  '#eab308',
   '#22c55e',
+  '#14b8a6',
   '#3b82f6',
   '#a855f7',
   '#ec4899',
-  '#14b8a6',
-  '#f97316',
-  '#eab308',
+  '#f43f5e',
   '#64748b',
-  '#f5f5f5',
-  '#ffffff',
+  '#a3a3a3',
 ];
 
 export function getIconSvg(name) {
@@ -100,40 +99,54 @@ export function searchIcons(query, limit = 72) {
 export function renderIconPickerHtml({
   selectedIcon = 'Folder',
   query = '',
+  selectedColor = '#e11d2e',
   searchAttr = 'data-role="icon-search"',
   gridAttr = 'data-role="icon-grid"',
+  labelAttr = 'data-role="icon-label"',
 }) {
   const names = searchIcons(query);
+  const q = String(query || '').replace(/"/g, '&quot;');
   return `
-    <input class="tf-mgr-input tf-icon-search" ${searchAttr} type="search" placeholder="Search Lucide icons…" value="${String(
-      query
-    ).replace(/"/g, '&quot;')}" />
-    <div class="tf-mgr-icons" ${gridAttr}>
-      ${names
-        .map(
-          (name) => `
-        <button type="button" class="tf-mgr-icon" data-icon="${name}" aria-selected="${
-          name === selectedIcon
-        }" title="${name}">
-          ${iconHtml(name, 'tf-icon')}
-        </button>`
-        )
-        .join('')}
+    <div class="tf-icon-picker">
+      <div class="tf-field-label-row">
+        <span class="tf-field-label">Icon</span>
+        <span class="tf-icon-selected-label" ${labelAttr}>${selectedIcon}</span>
+      </div>
+      <input class="tf-mgr-input tf-icon-search" ${searchAttr} type="search" placeholder="Search Lucide icons…" value="${q}" aria-label="Search icons" />
+      <div class="tf-mgr-icons" ${gridAttr} role="listbox" aria-label="Icons">
+        ${names
+          .map(
+            (name) => `
+          <button type="button" class="tf-mgr-icon" data-icon="${name}" role="option" aria-selected="${
+            name === selectedIcon
+          }" title="${name}" style="${
+            name === selectedIcon ? `color:${selectedColor};border-color:${selectedColor}` : ''
+          }">
+            ${iconHtml(name, 'tf-icon')}
+          </button>`
+          )
+          .join('')}
+      </div>
     </div>
-    <div class="tf-icon-selected-label">Selected: <strong>${selectedIcon}</strong></div>
   `;
 }
 
-export function renderColorPickerHtml(selectedColor = '#e11d2e') {
+export function renderColorPickerHtml(selectedColor = '#e11d2e', { customAttr = 'data-role="color-custom"' } = {}) {
+  const selected = selectedColor.toLowerCase();
+  const isPreset = FOLDER_COLORS.some((c) => c.toLowerCase() === selected);
   return `
-    <div class="tf-color-row" data-role="color-row">
+    <div class="tf-color-row" data-role="color-row" role="listbox" aria-label="Folder color">
       ${FOLDER_COLORS.map(
         (color) => `
-        <button type="button" class="tf-color-swatch" data-color="${color}" aria-selected="${
-          color.toLowerCase() === selectedColor.toLowerCase()
+        <button type="button" class="tf-color-swatch" data-color="${color}" role="option" aria-label="${color}" aria-selected="${
+          color.toLowerCase() === selected
         }" style="background:${color}" title="${color}"></button>`
       ).join('')}
-      <input type="color" class="tf-color-custom" data-role="color-custom" value="${selectedColor}" title="Custom color" />
+      <label class="tf-color-custom-wrap" title="Custom color">
+        <input type="color" class="tf-color-custom" ${customAttr} value="${selectedColor}" aria-label="Custom color" aria-selected="${
+          isPreset ? 'false' : 'true'
+        }" />
+      </label>
     </div>
   `;
 }
