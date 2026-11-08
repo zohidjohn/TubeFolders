@@ -434,49 +434,28 @@ ytd-app[mini-guide-visible] #tf-manager-page {
   flex-direction: row;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
 }
 
 .tf-name-row .tf-mgr-input {
-  flex: 1 1 140px;
+  flex: 1;
   min-width: 0;
   margin: 0;
 }
 
-.tf-folder-preview {
+.tf-create-plus {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  padding: 0;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  align-self: flex-start;
-  max-width: 100%;
-  padding: 6px 12px 6px 8px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--tf-preview-color, #e11d2e) 45%, transparent);
-  background: color-mix(in srgb, var(--tf-preview-color, #e11d2e) 12%, transparent);
-  transition: border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+  justify-content: center;
+  border-radius: 50%;
 }
 
-.tf-folder-preview.is-empty {
-  opacity: 0.55;
-}
-
-.tf-preview-icon {
-  display: inline-flex;
-  flex-shrink: 0;
-}
-
-.tf-preview-icon .tf-icon {
-  width: 16px;
-  height: 16px;
-}
-
-.tf-preview-name {
-  font-size: 13px;
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 180px;
+.tf-create-plus .tf-icon {
+  width: 20px;
+  height: 20px;
 }
 
 .tf-mgr-input {
@@ -509,10 +488,10 @@ ytd-app[mini-guide-visible] #tf-manager-page {
 .tf-mgr-icons {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 8px;
-  max-height: 220px;
+  gap: 6px;
+  max-height: 240px;
   overflow: auto;
-  padding: 2px;
+  padding: 0;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
 }
@@ -527,15 +506,12 @@ ytd-app[mini-guide-visible] #tf-manager-page {
 }
 
 .tf-mgr-icons-compact {
-  max-height: 160px;
+  max-height: 200px;
 }
 
 .tf-mgr-icon {
   width: 100%;
   aspect-ratio: 1;
-  max-width: 40px;
-  max-height: 40px;
-  justify-self: center;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -545,6 +521,7 @@ ytd-app[mini-guide-visible] #tf-manager-page {
   color: #f1f1f1;
   cursor: pointer;
   padding: 0;
+  min-height: 44px;
   transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease, transform 0.1s ease;
 }
 
@@ -562,8 +539,8 @@ ytd-app[mini-guide-visible] #tf-manager-page {
 }
 
 .tf-mgr-icon .tf-icon {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
 }
 
 .tf-mgr-btn {
@@ -629,12 +606,6 @@ ytd-app[mini-guide-visible] #tf-manager-page {
 .tf-mgr-icon-btn .tf-icon {
   width: 18px;
   height: 18px;
-}
-
-.tf-create-btn {
-  width: 100%;
-  height: 40px;
-  margin-top: 4px;
 }
 
 .tf-color-row {
@@ -951,10 +922,18 @@ ytd-app[mini-guide-visible] #tf-manager-page {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.25);
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.tf-subpanel-inner .tf-mgr-icons {
+  width: 100%;
+}
+
+.tf-subpanel-inner .tf-mgr-btn {
+  align-self: flex-start;
 }
 
 /*

@@ -95,25 +95,14 @@ function refreshIconGrid(page) {
     })
     .join('');
   if (label) label.textContent = selectedIcon;
-  updatePreview(page);
+  updateCreateState(page);
 }
 
-function updatePreview(page) {
-  const preview = page.querySelector('[data-role="folder-preview"]');
-  const createBtn = page.querySelector('[data-action="create"]');
+function updateCreateState(page) {
   const name = draftName.trim();
-  if (preview) {
-    preview.style.setProperty('--tf-preview-color', selectedColor);
-    const iconHost = preview.querySelector('[data-role="preview-icon"]');
-    if (iconHost) {
-      iconHost.style.color = selectedColor;
-      iconHost.innerHTML = iconHtml(selectedIcon, 'tf-icon');
-    }
-    const nameEl = preview.querySelector('[data-role="preview-name"]');
-    if (nameEl) nameEl.textContent = name || 'Folder name';
-    preview.classList.toggle('is-empty', !name);
-  }
-  if (createBtn) createBtn.disabled = !name;
+  page.querySelectorAll('[data-action="create"]').forEach((btn) => {
+    btn.disabled = !name;
+  });
 
   page.querySelectorAll('.tf-create-card .tf-mgr-icon[aria-selected="true"]').forEach((btn) => {
     btn.style.color = selectedColor;
@@ -253,16 +242,14 @@ async function renderBody(page) {
               value="${escapeHtml(draftName)}"
               aria-label="Folder name"
             />
-            <div class="tf-folder-preview ${draftName.trim() ? '' : 'is-empty'}" data-role="folder-preview" style="--tf-preview-color:${escapeHtml(
-              selectedColor
-            )}">
-              <span class="tf-preview-icon" data-role="preview-icon" style="color:${escapeHtml(
-                selectedColor
-              )}">${iconHtml(selectedIcon, 'tf-icon')}</span>
-              <span class="tf-preview-name" data-role="preview-name">${escapeHtml(
-                draftName.trim() || 'Folder name'
-              )}</span>
-            </div>
+            <button
+              type="button"
+              class="tf-mgr-btn tf-create-plus"
+              data-action="create"
+              aria-label="Create folder"
+              title="Create folder"
+              ${createDisabled ? 'disabled' : ''}
+            >${iconHtml('Plus', 'tf-icon')}</button>
           </div>
 
           <div class="tf-field">
@@ -277,10 +264,6 @@ async function renderBody(page) {
               selectedColor,
             })}
           </div>
-
-          <button type="button" class="tf-mgr-btn tf-create-btn" data-action="create" ${
-            createDisabled ? 'disabled' : ''
-          }>Create folder</button>
         </div>
       </section>
 
@@ -315,7 +298,7 @@ async function renderBody(page) {
   if (nameInput) {
     nameInput.addEventListener('input', () => {
       draftName = nameInput.value;
-      updatePreview(page);
+      updateCreateState(page);
     });
   }
 
@@ -590,7 +573,7 @@ function ensurePageShell() {
       // create-form color only
       if (!colorBtn.closest('[data-subpanel]')) {
         selectedColor = colorBtn.dataset.color;
-        updatePreview(page);
+        updateCreateState(page);
         refreshIconGrid(page);
         return;
       }
@@ -620,7 +603,7 @@ function ensurePageShell() {
   page.addEventListener('input', (e) => {
     if (e.target.matches?.('[data-role="color-custom"]')) {
       selectedColor = e.target.value;
-      updatePreview(page);
+      updateCreateState(page);
       refreshIconGrid(page);
     }
     if (e.target.matches?.('[data-role="folder-color-custom"]')) {
