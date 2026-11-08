@@ -499,10 +499,10 @@ ytd-app[mini-guide-visible] #tf-manager-page {
 
 .tf-mgr-icons {
   display: grid;
-  grid-template-columns: repeat(auto-fill, 36px);
-  gap: 6px;
+  grid-template-columns: repeat(auto-fill, 30px);
+  gap: 5px;
   justify-content: start;
-  max-height: 220px;
+  max-height: 200px;
   overflow: auto;
   padding: 0;
   scrollbar-width: thin;
@@ -519,18 +519,18 @@ ytd-app[mini-guide-visible] #tf-manager-page {
 }
 
 .tf-mgr-icons-compact {
-  max-height: 180px;
+  max-height: 160px;
 }
 
 .tf-mgr-icon {
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
+  border-radius: 7px;
   color: #f1f1f1;
   cursor: pointer;
   padding: 0;
@@ -551,8 +551,8 @@ ytd-app[mini-guide-visible] #tf-manager-page {
 }
 
 .tf-mgr-icon .tf-icon {
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
 }
 
 .tf-mgr-btn {
@@ -781,8 +781,8 @@ ytd-app[mini-guide-visible] #tf-manager-page {
 .tf-folder-card-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
+  gap: 10px;
+  padding: 12px 14px;
 }
 
 .tf-folder-icon {
@@ -791,8 +791,8 @@ ytd-app[mini-guide-visible] #tf-manager-page {
 }
 
 .tf-manager-folder .tf-icon-lg {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
 }
 
 .tf-folder-card-meta {
@@ -804,7 +804,7 @@ ytd-app[mini-guide-visible] #tf-manager-page {
 }
 
 .tf-folder-card-name {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
