@@ -21,14 +21,14 @@ function getRedirectUrl() {
 function buildAuthUrl() {
   const redirectUri = encodeURIComponent(getRedirectUrl());
   const clientId = encodeURIComponent(oauthClientId);
-  const nonce = Math.random().toString(36).slice(2);
+  // response_type=token (implicit) must NOT include nonce — Google returns
+  // "Parameter not allowed for this message type: nonce"
   return (
     'https://accounts.google.com/o/oauth2/v2/auth' +
     `?client_id=${clientId}` +
     `&response_type=token` +
     `&redirect_uri=${redirectUri}` +
-    `&scope=${encodeURIComponent('openid email profile')}` +
-    `&nonce=${nonce}` +
+    `&scope=${encodeURIComponent('email profile')}` +
     `&prompt=select_account`
   );
 }

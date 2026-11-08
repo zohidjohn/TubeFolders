@@ -32640,8 +32640,7 @@ function getRedirectUrl() {
 function buildAuthUrl() {
   const redirectUri = encodeURIComponent(getRedirectUrl());
   const clientId = encodeURIComponent(oauthClientId);
-  const nonce = Math.random().toString(36).slice(2);
-  return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&response_type=token&redirect_uri=${redirectUri}&scope=${encodeURIComponent("openid email profile")}&nonce=${nonce}&prompt=select_account`;
+  return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&response_type=token&redirect_uri=${redirectUri}&scope=${encodeURIComponent("email profile")}&prompt=select_account`;
 }
 function parseAccessToken(redirectUrl) {
   const hash = redirectUrl.split("#")[1] || "";
