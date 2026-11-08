@@ -328,10 +328,10 @@ ytd-app[mini-guide-visible] #tf-manager-page {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 6px 4px 4px;
+  padding: 0;
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 999px;
+  border: none;
+  border-radius: 0;
   max-width: 100%;
   min-width: 0;
 }
@@ -451,11 +451,19 @@ ytd-app[mini-guide-visible] #tf-manager-page {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
+  line-height: 0;
+  font-size: 0;
 }
 
+.tf-create-plus svg,
 .tf-create-plus .tf-icon {
-  width: 20px;
-  height: 20px;
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px;
+  min-height: 22px;
+  stroke-width: 2.75;
+  display: block;
+  flex-shrink: 0;
 }
 
 .tf-mgr-input {
@@ -477,8 +485,12 @@ ytd-app[mini-guide-visible] #tf-manager-page {
 }
 
 .tf-mgr-input:focus {
-  border-color: #e11d2e;
+  border-color: rgba(255, 255, 255, 0.28);
   background: rgba(255, 255, 255, 0.08);
+}
+
+.tf-name-row .tf-mgr-input:focus {
+  border-color: #e11d2e;
 }
 
 .tf-icon-search {
@@ -487,9 +499,10 @@ ytd-app[mini-guide-visible] #tf-manager-page {
 
 .tf-mgr-icons {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, 36px);
   gap: 6px;
-  max-height: 240px;
+  justify-content: start;
+  max-height: 220px;
   overflow: auto;
   padding: 0;
   scrollbar-width: thin;
@@ -506,22 +519,21 @@ ytd-app[mini-guide-visible] #tf-manager-page {
 }
 
 .tf-mgr-icons-compact {
-  max-height: 200px;
+  max-height: 180px;
 }
 
 .tf-mgr-icon {
-  width: 100%;
-  aspect-ratio: 1;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
+  border-radius: 8px;
   color: #f1f1f1;
   cursor: pointer;
   padding: 0;
-  min-height: 44px;
   transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease, transform 0.1s ease;
 }
 
@@ -539,8 +551,8 @@ ytd-app[mini-guide-visible] #tf-manager-page {
 }
 
 .tf-mgr-icon .tf-icon {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
 }
 
 .tf-mgr-btn {
