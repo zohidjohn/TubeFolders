@@ -5,6 +5,59 @@
       __defProp(target, name, { get: all[name], enumerable: true });
   };
 
+  // src/lib/extension.js
+  function isExtensionAlive() {
+    try {
+      return Boolean(chrome?.runtime?.id);
+    } catch {
+      return false;
+    }
+  }
+  async function safeStorageGet(keys) {
+    if (!isExtensionAlive()) return {};
+    try {
+      return await chrome.storage.local.get(keys);
+    } catch (err) {
+      if (/context invalidated/i.test(String(err?.message || err))) return {};
+      throw err;
+    }
+  }
+  async function safeStorageSet(values) {
+    if (!isExtensionAlive()) return false;
+    try {
+      await chrome.storage.local.set(values);
+      return true;
+    } catch (err) {
+      if (/context invalidated/i.test(String(err?.message || err))) return false;
+      throw err;
+    }
+  }
+  function safeSendMessage(message) {
+    return new Promise((resolve) => {
+      if (!isExtensionAlive()) {
+        resolve({ ok: false, reason: "context_invalidated" });
+        return;
+      }
+      try {
+        chrome.runtime.sendMessage(message, (res) => {
+          if (chrome.runtime.lastError) {
+            resolve({
+              ok: false,
+              error: chrome.runtime.lastError.message
+            });
+            return;
+          }
+          resolve(res || { ok: false });
+        });
+      } catch (err) {
+        resolve({
+          ok: false,
+          error: err?.message || String(err)
+        });
+      }
+    });
+  }
+
   // src/lib/storage.js
   var LIBRARY_KEY = "library";
   var AUTH_META_KEY = "authMeta";
@@ -13,7 +66,7 @@
     return { folders: [], channels: {}, updatedAt: 0 };
   }
   async function getLibrary() {
-    const data = await chrome.storage.local.get(LIBRARY_KEY);
+    const data = await safeStorageGet(LIBRARY_KEY);
     const lib = data[LIBRARY_KEY];
     if (!lib || typeof lib !== "object") return emptyLibrary();
     return {
@@ -28,14 +81,14 @@
       channels: library.channels || {},
       updatedAt: library.updatedAt || Date.now()
     };
-    await chrome.storage.local.set({
+    await safeStorageSet({
       [LIBRARY_KEY]: next,
       [DIRTY_KEY]: dirty
     });
     return next;
   }
   async function getAuthMeta() {
-    const data = await chrome.storage.local.get(AUTH_META_KEY);
+    const data = await safeStorageGet(AUTH_META_KEY);
     return data[AUTH_META_KEY] || null;
   }
   function createId() {
@@ -95,13 +148,26 @@
     return ids;
   }
   function onLibraryChange(callback) {
+    if (!isExtensionAlive()) return () => {
+    };
     const listener = (changes, area) => {
+      if (!isExtensionAlive()) return;
       if (area === "local" && changes[LIBRARY_KEY]) {
         callback(changes[LIBRARY_KEY].newValue || emptyLibrary());
       }
     };
-    chrome.storage.onChanged.addListener(listener);
-    return () => chrome.storage.onChanged.removeListener(listener);
+    try {
+      chrome.storage.onChanged.addListener(listener);
+    } catch {
+      return () => {
+      };
+    }
+    return () => {
+      try {
+        chrome.storage.onChanged.removeListener(listener);
+      } catch {
+      }
+    };
   }
 
   // node_modules/lucide/dist/esm/iconsAndAliases.mjs
@@ -22958,16 +23024,7 @@
     return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
   function send(type, payload = {}) {
-    return new Promise((resolve) => {
-      try {
-        chrome.runtime.sendMessage({ type, ...payload }, (res) => {
-          void chrome.runtime.lastError;
-          resolve(res || { ok: false });
-        });
-      } catch {
-        resolve({ ok: false });
-      }
-    });
+    return safeSendMessage({ type, ...payload });
   }
   function channelLabel(ch) {
     return ch?.name || ch?.handle || ch?.id || "Channel";
@@ -23438,10 +23495,7 @@
   var BTN_ID = "tf-add-folder-btn";
   var WRAP_ID = "tf-add-folder-wrap";
   function requestSync() {
-    try {
-      chrome.runtime.sendMessage({ type: "tf-sync" }, () => void chrome.runtime.lastError);
-    } catch {
-    }
+    safeSendMessage({ type: "tf-sync" });
   }
   function escapeHtml3(str) {
     return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -23586,12 +23640,18 @@
     return true;
   }
   function startChannelPanel() {
+    if (!isExtensionAlive()) return;
     ensureSubscribeButton();
     onLibraryChange(() => {
+      if (!isExtensionAlive()) return;
       ensureSubscribeButton();
     });
     let tries = 0;
     const timer = setInterval(() => {
+      if (!isExtensionAlive()) {
+        clearInterval(timer);
+        return;
+      }
       tries += 1;
       ensureSubscribeButton().then((ok) => {
         if (ok || tries > 40) clearInterval(timer);
@@ -23603,7 +23663,7 @@
   }
 
   // src/content/main.js
-  var FONT_URL = chrome.runtime.getURL("assets/fonts/Outfit-Variable.ttf");
+  var FONT_URL = isExtensionAlive() ? chrome.runtime.getURL("assets/fonts/Outfit-Variable.ttf") : "";
   function ensureFont() {
     if (document.getElementById("tf-font-style")) return;
     const style = document.createElement("style");
@@ -23620,6 +23680,7 @@
     document.documentElement.appendChild(style);
   }
   function refreshAll() {
+    if (!isExtensionAlive()) return;
     ensureFont();
     renderSidebar();
     highlightSubscriptions();
@@ -23631,8 +23692,13 @@
     });
     let timer = null;
     const obs = new MutationObserver(() => {
+      if (!isExtensionAlive()) {
+        obs.disconnect();
+        return;
+      }
       clearTimeout(timer);
       timer = setTimeout(() => {
+        if (!isExtensionAlive()) return;
         if (!document.getElementById("tf-sidebar-section")) {
           renderSidebar();
         }
@@ -23647,13 +23713,15 @@
     if (document.body) start();
     else document.addEventListener("DOMContentLoaded", start, { once: true });
   }
-  ensureFont();
-  startSidebar();
-  startHighlight();
-  startChannelPanel();
-  observeSpa();
-  setTimeout(refreshAll, 1e3);
-  setTimeout(refreshAll, 3e3);
+  if (isExtensionAlive()) {
+    ensureFont();
+    startSidebar();
+    startHighlight();
+    startChannelPanel();
+    observeSpa();
+    setTimeout(refreshAll, 1e3);
+    setTimeout(refreshAll, 3e3);
+  }
 })();
 /*! Bundled license information:
 

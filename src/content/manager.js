@@ -12,6 +12,7 @@ import {
   renderColorPickerHtml,
   searchIcons,
 } from '../lib/icons.js';
+import { safeSendMessage } from '../lib/extension.js';
 
 const OVERLAY_ID = 'tf-manager-overlay';
 let selectedIcon = 'Folder';
@@ -28,16 +29,7 @@ function escapeHtml(str) {
 }
 
 function send(type, payload = {}) {
-  return new Promise((resolve) => {
-    try {
-      chrome.runtime.sendMessage({ type, ...payload }, (res) => {
-        void chrome.runtime.lastError;
-        resolve(res || { ok: false });
-      });
-    } catch {
-      resolve({ ok: false });
-    }
-  });
+  return safeSendMessage({ type, ...payload });
 }
 
 function channelLabel(ch) {

@@ -5,17 +5,14 @@ import {
 } from '../lib/storage.js';
 import { extractChannelFromPage, isChannelPage } from '../lib/youtube.js';
 import { iconHtml } from '../lib/icons.js';
+import { isExtensionAlive, safeSendMessage } from '../lib/extension.js';
 
 const PANEL_ID = 'tf-channel-panel';
 const BTN_ID = 'tf-add-folder-btn';
 const WRAP_ID = 'tf-add-folder-wrap';
 
 function requestSync() {
-  try {
-    chrome.runtime.sendMessage({ type: 'tf-sync' }, () => void chrome.runtime.lastError);
-  } catch {
-    /* ignore */
-  }
+  safeSendMessage({ type: 'tf-sync' });
 }
 
 function escapeHtml(str) {
@@ -214,13 +211,19 @@ export async function ensureSubscribeButton() {
 }
 
 export function startChannelPanel() {
+  if (!isExtensionAlive()) return;
   ensureSubscribeButton();
   onLibraryChange(() => {
+    if (!isExtensionAlive()) return;
     ensureSubscribeButton();
   });
 
   let tries = 0;
   const timer = setInterval(() => {
+    if (!isExtensionAlive()) {
+      clearInterval(timer);
+      return;
+    }
     tries += 1;
     ensureSubscribeButton().then((ok) => {
       if (ok || tries > 40) clearInterval(timer);

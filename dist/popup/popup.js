@@ -32619,6 +32619,34 @@ function getDb() {
   return getFirestore(getFirebaseApp());
 }
 
+// src/lib/extension.js
+function isExtensionAlive() {
+  try {
+    return Boolean(chrome?.runtime?.id);
+  } catch {
+    return false;
+  }
+}
+async function safeStorageGet(keys) {
+  if (!isExtensionAlive()) return {};
+  try {
+    return await chrome.storage.local.get(keys);
+  } catch (err) {
+    if (/context invalidated/i.test(String(err?.message || err))) return {};
+    throw err;
+  }
+}
+async function safeStorageSet(values) {
+  if (!isExtensionAlive()) return false;
+  try {
+    await chrome.storage.local.set(values);
+    return true;
+  } catch (err) {
+    if (/context invalidated/i.test(String(err?.message || err))) return false;
+    throw err;
+  }
+}
+
 // src/lib/storage.js
 var LIBRARY_KEY = "library";
 var AUTH_META_KEY = "authMeta";
@@ -32627,7 +32655,7 @@ function emptyLibrary() {
   return { folders: [], channels: {}, updatedAt: 0 };
 }
 async function getLibrary() {
-  const data = await chrome.storage.local.get(LIBRARY_KEY);
+  const data = await safeStorageGet(LIBRARY_KEY);
   const lib = data[LIBRARY_KEY];
   if (!lib || typeof lib !== "object") return emptyLibrary();
   return {
@@ -32642,34 +32670,47 @@ async function setLibrary(library, { dirty = true } = {}) {
     channels: library.channels || {},
     updatedAt: library.updatedAt || Date.now()
   };
-  await chrome.storage.local.set({
+  await safeStorageSet({
     [LIBRARY_KEY]: next,
     [DIRTY_KEY]: dirty
   });
   return next;
 }
 async function isLibraryDirty() {
-  const data = await chrome.storage.local.get(DIRTY_KEY);
+  const data = await safeStorageGet(DIRTY_KEY);
   return Boolean(data[DIRTY_KEY]);
 }
 async function clearDirty() {
-  await chrome.storage.local.set({ [DIRTY_KEY]: false });
+  await safeStorageSet({ [DIRTY_KEY]: false });
 }
 async function setAuthMeta(meta) {
-  await chrome.storage.local.set({ [AUTH_META_KEY]: meta || null });
+  await safeStorageSet({ [AUTH_META_KEY]: meta || null });
 }
 async function getAuthMeta() {
-  const data = await chrome.storage.local.get(AUTH_META_KEY);
+  const data = await safeStorageGet(AUTH_META_KEY);
   return data[AUTH_META_KEY] || null;
 }
 function onLibraryChange(callback) {
+  if (!isExtensionAlive()) return () => {
+  };
   const listener = (changes, area) => {
+    if (!isExtensionAlive()) return;
     if (area === "local" && changes[LIBRARY_KEY]) {
       callback(changes[LIBRARY_KEY].newValue || emptyLibrary());
     }
   };
-  chrome.storage.onChanged.addListener(listener);
-  return () => chrome.storage.onChanged.removeListener(listener);
+  try {
+    chrome.storage.onChanged.addListener(listener);
+  } catch {
+    return () => {
+    };
+  }
+  return () => {
+    try {
+      chrome.storage.onChanged.removeListener(listener);
+    } catch {
+    }
+  };
 }
 
 // src/lib/auth.js

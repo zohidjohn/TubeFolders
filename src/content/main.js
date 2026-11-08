@@ -1,8 +1,11 @@
 import { startSidebar, renderSidebar } from './sidebar.js';
 import { startHighlight, highlightSubscriptions } from './highlight.js';
 import { startChannelPanel, refreshChannelPanel } from './channel-page.js';
+import { isExtensionAlive } from '../lib/extension.js';
 
-const FONT_URL = chrome.runtime.getURL('assets/fonts/Outfit-Variable.ttf');
+const FONT_URL = isExtensionAlive()
+  ? chrome.runtime.getURL('assets/fonts/Outfit-Variable.ttf')
+  : '';
 
 function ensureFont() {
   if (document.getElementById('tf-font-style')) return;
@@ -21,6 +24,7 @@ function ensureFont() {
 }
 
 function refreshAll() {
+  if (!isExtensionAlive()) return;
   ensureFont();
   renderSidebar();
   highlightSubscriptions();
@@ -34,8 +38,13 @@ function observeSpa() {
 
   let timer = null;
   const obs = new MutationObserver(() => {
+    if (!isExtensionAlive()) {
+      obs.disconnect();
+      return;
+    }
     clearTimeout(timer);
     timer = setTimeout(() => {
+      if (!isExtensionAlive()) return;
       if (!document.getElementById('tf-sidebar-section')) {
         renderSidebar();
       }
@@ -54,10 +63,12 @@ function observeSpa() {
   else document.addEventListener('DOMContentLoaded', start, { once: true });
 }
 
-ensureFont();
-startSidebar();
-startHighlight();
-startChannelPanel();
-observeSpa();
-setTimeout(refreshAll, 1000);
-setTimeout(refreshAll, 3000);
+if (isExtensionAlive()) {
+  ensureFont();
+  startSidebar();
+  startHighlight();
+  startChannelPanel();
+  observeSpa();
+  setTimeout(refreshAll, 1000);
+  setTimeout(refreshAll, 3000);
+}
