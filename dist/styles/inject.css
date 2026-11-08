@@ -11,10 +11,10 @@
   --tf-radius: 4px;
 }
 
-/* Native-looking guide section (between Subscriptions and You) */
+/* Native-looking guide section — ABOVE Subscriptions (below Home/Shorts) */
 #tf-sidebar-section.tf-guide-section {
-  margin: 12px 0 0;
-  padding: 0 0 8px;
+  margin: 0;
+  padding: 12px 0 0;
   border: none;
   border-radius: 0;
   background: transparent;
@@ -27,7 +27,7 @@
   justify-content: space-between;
   width: 100%;
   min-height: 40px;
-  padding: 0 24px 0 12px;
+  padding: 0 12px;
   border: none;
   background: transparent;
   color: var(--yt-spec-text-primary, #f1f1f1);
@@ -45,13 +45,25 @@
 
 .tf-guide-title {
   flex: 1;
+  padding-left: 12px;
 }
 
-.tf-guide-chevron {
-  color: var(--yt-spec-text-secondary, #aaa);
-  font-size: 16px;
-  line-height: 1;
-  margin-right: 4px;
+.tf-guide-chevron,
+.tf-folder-toggle .tf-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-right: 12px;
+  color: var(--yt-spec-text-primary, #f1f1f1);
+}
+
+.tf-guide-chevron .tf-yt-chevron,
+.tf-folder-toggle .tf-yt-chevron {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
 }
 
 .tf-guide-empty {
@@ -119,12 +131,6 @@
   text-align: center;
 }
 
-.tf-folder-toggle .tf-chevron {
-  width: 24px;
-  text-align: center;
-  color: var(--yt-spec-text-secondary, #aaa);
-  font-size: 14px;
-}
 
 .tf-channel-link.tf-channel-new span {
   font-weight: 500;

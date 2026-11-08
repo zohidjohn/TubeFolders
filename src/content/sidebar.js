@@ -6,51 +6,87 @@ import { openManager } from './manager.js';
 const SECTION_ID = 'tf-sidebar-section';
 
 function sectionTitleText(section) {
+  if (!section) return '';
   return (
     section.querySelector('#guide-section-title, h3, #header, yt-formatted-string')
-      ?.textContent || ''
+      ?.textContent ||
+    section.textContent ||
+    ''
   )
     .trim()
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
 }
 
 function findGuideSections() {
   return [
     ...document.querySelectorAll(
-      'ytd-guide-section-renderer, yt-guide-section-renderer'
+      '#sections ytd-guide-section-renderer, #sections yt-guide-section-renderer, ytd-guide-renderer ytd-guide-section-renderer, yt-guide-section-renderer'
     ),
   ];
 }
 
-/** Insert TubeFolders between Subscriptions and You. */
-function placeSection(node) {
-  const sections = findGuideSections();
-  let subscriptions = null;
-  let you = null;
-
-  for (const section of sections) {
+function findSubscriptionsSection() {
+  for (const section of findGuideSections()) {
     const title = sectionTitleText(section);
-    if (!subscriptions && title.includes('subscription')) subscriptions = section;
-    // Exact-ish "You" heading (not "Your videos" alone as section in some layouts)
-    if (!you && (title === 'you' || title.startsWith('you'))) you = section;
+    // Header text like "Subscriptions"
+    if (title.startsWith('subscription')) return section;
   }
 
+  // Fallback: section that contains the subscriptions feed link in its header area
+  for (const section of findGuideSections()) {
+    const headerLink = section.querySelector(
+      'a[href="/feed/subscriptions"], a[href*="/feed/subscriptions"]'
+    );
+    if (!headerLink) continue;
+    // Prefer the section whose first items are channels, not the footer
+    const title = sectionTitleText(section);
+    if (title.includes('subscription') || !title.includes('more from youtube')) {
+      return section;
+    }
+  }
+  return null;
+}
+
+function isCorrectPlacement(node) {
+  if (!node?.parentElement) return false;
+  const next = node.nextElementSibling;
+  if (!next) return false;
+  const title = sectionTitleText(next);
+  return title.startsWith('subscription') || title.includes('subscription');
+}
+
+/**
+ * Place TubeFolders ABOVE Subscriptions (below Home/Shorts).
+ * Never append to the footer end of the guide.
+ */
+function placeSection(node) {
+  const subscriptions = findSubscriptionsSection();
   if (subscriptions?.parentElement) {
-    // After Subscriptions, before whatever follows (usually You)
-    subscriptions.insertAdjacentElement('afterend', node);
+    subscriptions.parentElement.insertBefore(node, subscriptions);
     return true;
   }
 
-  if (you?.parentElement) {
-    you.parentElement.insertBefore(node, you);
+  const sections = findGuideSections();
+  // Typical order: [Home/Shorts] [Subscriptions] [You] ...
+  if (sections.length >= 2 && sections[1]?.parentElement) {
+    sections[1].parentElement.insertBefore(node, sections[1]);
     return true;
   }
 
-  const guide = document.querySelector('#guide-inner-content, ytd-guide-renderer #sections');
-  if (guide) {
-    guide.appendChild(node);
+  if (sections[0]?.parentElement) {
+    sections[0].insertAdjacentElement('afterend', node);
     return true;
   }
+
+  const sectionsHost = document.querySelector(
+    'ytd-guide-renderer #sections, yt-guide-renderer #sections, #guide-inner-content #sections'
+  );
+  if (sectionsHost?.firstElementChild) {
+    sectionsHost.insertBefore(node, sectionsHost.children[1] || null);
+    return true;
+  }
+
   return false;
 }
 
@@ -64,6 +100,10 @@ function channelHref(channel) {
   return `https://www.youtube.com/${id}`;
 }
 
+function chevronHtml(open = false) {
+  return iconHtml(open ? 'ChevronDown' : 'ChevronRight', 'tf-icon tf-yt-chevron');
+}
+
 function buildSection(library, newIds) {
   const section = document.createElement('div');
   section.id = SECTION_ID;
@@ -75,7 +115,7 @@ function buildSection(library, newIds) {
   section.innerHTML = `
     <button type="button" class="tf-guide-header tf-sidebar-open" title="Manage TubeFolders">
       <span class="tf-guide-title">TubeFolders</span>
-      <span class="tf-guide-chevron" aria-hidden="true">&gt;</span>
+      <span class="tf-guide-chevron">${chevronHtml(false)}</span>
     </button>
     <div class="tf-guide-items">
       ${
@@ -103,7 +143,7 @@ function buildSection(library, newIds) {
                       )};color:${contrastText(color)}">${newCount}</span>`
                     : ''
                 }
-                <span class="tf-chevron" aria-hidden="true">&gt;</span>
+                <span class="tf-chevron">${chevronHtml(false)}</span>
               </button>
               <div class="tf-folder-channels">
                 ${
@@ -146,10 +186,11 @@ function buildSection(library, newIds) {
     if (!toggle) return;
     const folder = toggle.closest('.tf-folder');
     const open = folder.getAttribute('data-open') === 'true';
-    folder.setAttribute('data-open', open ? 'false' : 'true');
-    toggle.setAttribute('aria-expanded', open ? 'false' : 'true');
+    const nextOpen = !open;
+    folder.setAttribute('data-open', nextOpen ? 'true' : 'false');
+    toggle.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
     const chevron = toggle.querySelector('.tf-chevron');
-    if (chevron) chevron.textContent = open ? '>' : '∨';
+    if (chevron) chevron.innerHTML = chevronHtml(nextOpen);
   });
 
   return section;
@@ -190,9 +231,11 @@ export async function renderSidebar() {
       (el) => el.dataset.folderId
     )
   );
+
   const library = await getLibrary();
   const newIds = collectNewChannelIds();
   const next = buildSection(library, newIds);
+
   for (const id of openFolders) {
     const folder = next.querySelector(`.tf-folder[data-folder-id="${id}"]`);
     if (folder) {
@@ -200,26 +243,22 @@ export async function renderSidebar() {
       const toggle = folder.querySelector('.tf-folder-toggle');
       const chevron = folder.querySelector('.tf-chevron');
       if (toggle) toggle.setAttribute('aria-expanded', 'true');
-      if (chevron) chevron.textContent = '∨';
+      if (chevron) chevron.innerHTML = chevronHtml(true);
     }
   }
 
-  if (existing) {
-    existing.replaceWith(next);
-    // replaceWith keeps position in DOM — good when already placed correctly
-    // If it was in the wrong place (old top), re-place
-    const parent = next.parentElement;
-    const afterSubs =
-      next.previousElementSibling &&
-      sectionTitleText(next.previousElementSibling).includes('subscription');
-    if (!afterSubs) {
-      next.remove();
-      placeSection(next);
-    }
+  // Always detach old node, then place above Subscriptions
+  existing?.remove();
+  const placed = placeSection(next);
+  if (!placed) {
+    // Keep off-DOM until guide is ready; next observer pass will retry
     return;
   }
 
-  placeSection(next);
+  if (!isCorrectPlacement(next)) {
+    next.remove();
+    placeSection(next);
+  }
 }
 
 export function startSidebar() {

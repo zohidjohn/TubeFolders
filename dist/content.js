@@ -23208,35 +23208,60 @@
   // src/content/sidebar.js
   var SECTION_ID = "tf-sidebar-section";
   function sectionTitleText(section) {
-    return (section.querySelector("#guide-section-title, h3, #header, yt-formatted-string")?.textContent || "").trim().toLowerCase();
+    if (!section) return "";
+    return (section.querySelector("#guide-section-title, h3, #header, yt-formatted-string")?.textContent || section.textContent || "").trim().toLowerCase().replace(/\s+/g, " ");
   }
   function findGuideSections() {
     return [
       ...document.querySelectorAll(
-        "ytd-guide-section-renderer, yt-guide-section-renderer"
+        "#sections ytd-guide-section-renderer, #sections yt-guide-section-renderer, ytd-guide-renderer ytd-guide-section-renderer, yt-guide-section-renderer"
       )
     ];
   }
-  function placeSection(node) {
-    const sections = findGuideSections();
-    let subscriptions = null;
-    let you = null;
-    for (const section of sections) {
+  function findSubscriptionsSection() {
+    for (const section of findGuideSections()) {
       const title = sectionTitleText(section);
-      if (!subscriptions && title.includes("subscription")) subscriptions = section;
-      if (!you && (title === "you" || title.startsWith("you"))) you = section;
+      if (title.startsWith("subscription")) return section;
     }
+    for (const section of findGuideSections()) {
+      const headerLink = section.querySelector(
+        'a[href="/feed/subscriptions"], a[href*="/feed/subscriptions"]'
+      );
+      if (!headerLink) continue;
+      const title = sectionTitleText(section);
+      if (title.includes("subscription") || !title.includes("more from youtube")) {
+        return section;
+      }
+    }
+    return null;
+  }
+  function isCorrectPlacement(node) {
+    if (!node?.parentElement) return false;
+    const next = node.nextElementSibling;
+    if (!next) return false;
+    const title = sectionTitleText(next);
+    return title.startsWith("subscription") || title.includes("subscription");
+  }
+  function placeSection(node) {
+    const subscriptions = findSubscriptionsSection();
     if (subscriptions?.parentElement) {
-      subscriptions.insertAdjacentElement("afterend", node);
+      subscriptions.parentElement.insertBefore(node, subscriptions);
       return true;
     }
-    if (you?.parentElement) {
-      you.parentElement.insertBefore(node, you);
+    const sections = findGuideSections();
+    if (sections.length >= 2 && sections[1]?.parentElement) {
+      sections[1].parentElement.insertBefore(node, sections[1]);
       return true;
     }
-    const guide = document.querySelector("#guide-inner-content, ytd-guide-renderer #sections");
-    if (guide) {
-      guide.appendChild(node);
+    if (sections[0]?.parentElement) {
+      sections[0].insertAdjacentElement("afterend", node);
+      return true;
+    }
+    const sectionsHost = document.querySelector(
+      "ytd-guide-renderer #sections, yt-guide-renderer #sections, #guide-inner-content #sections"
+    );
+    if (sectionsHost?.firstElementChild) {
+      sectionsHost.insertBefore(node, sectionsHost.children[1] || null);
       return true;
     }
     return false;
@@ -23250,6 +23275,9 @@
     if (id.startsWith("user/")) return `https://www.youtube.com/${id}`;
     return `https://www.youtube.com/${id}`;
   }
+  function chevronHtml(open = false) {
+    return iconHtml(open ? "ChevronDown" : "ChevronRight", "tf-icon tf-yt-chevron");
+  }
   function buildSection(library, newIds) {
     const section = document.createElement("div");
     section.id = SECTION_ID;
@@ -23259,7 +23287,7 @@
     section.innerHTML = `
     <button type="button" class="tf-guide-header tf-sidebar-open" title="Manage TubeFolders">
       <span class="tf-guide-title">TubeFolders</span>
-      <span class="tf-guide-chevron" aria-hidden="true">&gt;</span>
+      <span class="tf-guide-chevron">${chevronHtml(false)}</span>
     </button>
     <div class="tf-guide-items">
       ${folders.length === 0 ? `<button type="button" class="tf-guide-empty tf-sidebar-open">Create folders</button>` : folders.map((folder) => {
@@ -23277,7 +23305,7 @@
                 ${newCount > 0 ? `<span class="tf-folder-new" title="Channels with new videos" style="background:${escapeAttr(
         color
       )};color:${contrastText(color)}">${newCount}</span>` : ""}
-                <span class="tf-chevron" aria-hidden="true">&gt;</span>
+                <span class="tf-chevron">${chevronHtml(false)}</span>
               </button>
               <div class="tf-folder-channels">
                 ${items.length ? items.map((ch) => {
@@ -23305,10 +23333,11 @@
       if (!toggle) return;
       const folder = toggle.closest(".tf-folder");
       const open = folder.getAttribute("data-open") === "true";
-      folder.setAttribute("data-open", open ? "false" : "true");
-      toggle.setAttribute("aria-expanded", open ? "false" : "true");
+      const nextOpen = !open;
+      folder.setAttribute("data-open", nextOpen ? "true" : "false");
+      toggle.setAttribute("aria-expanded", nextOpen ? "true" : "false");
       const chevron = toggle.querySelector(".tf-chevron");
-      if (chevron) chevron.textContent = open ? ">" : "\u2228";
+      if (chevron) chevron.innerHTML = chevronHtml(nextOpen);
     });
     return section;
   }
@@ -23344,20 +23373,18 @@
         const toggle = folder.querySelector(".tf-folder-toggle");
         const chevron = folder.querySelector(".tf-chevron");
         if (toggle) toggle.setAttribute("aria-expanded", "true");
-        if (chevron) chevron.textContent = "\u2228";
+        if (chevron) chevron.innerHTML = chevronHtml(true);
       }
     }
-    if (existing) {
-      existing.replaceWith(next);
-      const parent = next.parentElement;
-      const afterSubs = next.previousElementSibling && sectionTitleText(next.previousElementSibling).includes("subscription");
-      if (!afterSubs) {
-        next.remove();
-        placeSection(next);
-      }
+    existing?.remove();
+    const placed = placeSection(next);
+    if (!placed) {
       return;
     }
-    placeSection(next);
+    if (!isCorrectPlacement(next)) {
+      next.remove();
+      placeSection(next);
+    }
   }
   function startSidebar() {
     renderSidebar();
