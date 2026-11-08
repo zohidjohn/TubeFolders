@@ -26,69 +26,39 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-function looksLikeSubscribeControl(el) {
-  if (!el) return false;
-  const text = (el.textContent || '').trim().toLowerCase();
-  const aria = (el.getAttribute?.('aria-label') || '').toLowerCase();
-  const hay = `${text} ${aria}`;
-  return (
-    hay.includes('subscribe') ||
-    hay.includes('subscribed') ||
-    hay.includes('подпис') || // Russian subscribe variants
-    el.tagName?.toLowerCase().includes('subscribe')
-  );
-}
-
 /**
- * Find the Subscribe / Subscribed control on modern YouTube channel headers.
- * Returns { anchor, mode } where mode is 'after' | 'append'.
+ * Signed-in channel header (verified on @UtopiaShowLive):
+ * yt-flexible-actions-view-model
+ *   └─ div.ytFlexibleActionsViewModelAction
+ *        └─ yt-subscribe-button-view-model.ytSubscribeButtonViewModelHost  ("Subscribed")
+ *
+ * Insert our button as the next action sibling after that action div.
  */
 function findSubscribeInsertion() {
-  const tagged =
-    document.querySelector('yt-subscribe-button-view-model') ||
-    document.querySelector('ytd-subscribe-button-renderer') ||
-    document.querySelector('#subscribe-button');
-  if (tagged) {
-    return { anchor: tagged, mode: 'after' };
-  }
-
-  // Flexible actions row on redesigned channel page
-  const actions =
-    document.querySelector('yt-flexible-actions-view-model') ||
-    document.querySelector('.ytFlexibleActionsViewModelHost') ||
-    document.querySelector('#page-header yt-page-header-view-model') ||
-    document.querySelector('#inner-header-container #buttons') ||
-    document.querySelector('#channel-header-container #buttons');
-
-  if (actions) {
-    const buttons = [
-      ...actions.querySelectorAll('button, a, yt-button-view-model, .yt-spec-button-shape-next'),
-    ];
-    const sub = buttons.find(looksLikeSubscribeControl);
-    if (sub) {
-      const wrap =
-        sub.closest('yt-button-view-model, yt-subscribe-button-view-model, ytd-subscribe-button-renderer') ||
-        sub;
-      return { anchor: wrap, mode: 'after' };
-    }
-    return { anchor: actions, mode: 'append' };
-  }
-
-  // Fallback: any visible subscribe-looking button in the header area
+  // Prefer page-header subscribe (not shelf / related channel subscribe)
   const header =
-    document.querySelector('#page-header') ||
-    document.querySelector('ytd-c4-tabbed-header-renderer') ||
-    document.querySelector('#channel-header');
+    document.querySelector('#page-header yt-flexible-actions-view-model') ||
+    document.querySelector(
+      'yt-page-header-view-model yt-flexible-actions-view-model'
+    ) ||
+    document.querySelector('yt-flexible-actions-view-model');
+
   if (header) {
-    const candidate = [...header.querySelectorAll('button, yt-button-view-model')].find(
-      looksLikeSubscribeControl
-    );
-    if (candidate) {
-      const wrap =
-        candidate.closest('yt-button-view-model, yt-subscribe-button-view-model') ||
-        candidate;
-      return { anchor: wrap, mode: 'after' };
+    const subVm =
+      header.querySelector('yt-subscribe-button-view-model') ||
+      header.querySelector('.ytSubscribeButtonViewModelHost');
+    if (subVm) {
+      const action = subVm.closest('.ytFlexibleActionsViewModelAction') || subVm;
+      return { anchor: action, mode: 'after', host: header };
     }
+  }
+
+  const subVm = document.querySelector(
+    '#page-header yt-subscribe-button-view-model, yt-page-header-view-model yt-subscribe-button-view-model'
+  );
+  if (subVm) {
+    const action = subVm.closest('.ytFlexibleActionsViewModelAction') || subVm;
+    return { anchor: action, mode: 'after', host: action.parentElement };
   }
 
   return null;
@@ -204,8 +174,20 @@ export async function ensureSubscribeButton() {
   }
 
   if (document.getElementById(BTN_ID)) {
-    await updateButtonLabel();
-    return true;
+    // Ensure it is still next to the header subscribe control
+    const wrap = document.getElementById(WRAP_ID);
+    const spot = findSubscribeInsertion();
+    if (
+      wrap &&
+      spot?.anchor &&
+      wrap.previousElementSibling !== spot.anchor &&
+      wrap.parentElement !== spot.host
+    ) {
+      wrap.remove();
+    } else {
+      await updateButtonLabel();
+      return true;
+    }
   }
 
   const spot = findSubscribeInsertion();
@@ -213,7 +195,7 @@ export async function ensureSubscribeButton() {
 
   const wrap = document.createElement('div');
   wrap.id = WRAP_ID;
-  wrap.className = 'tf-root tf-add-folder-wrap';
+  wrap.className = 'tf-root tf-add-folder-wrap ytFlexibleActionsViewModelAction';
 
   const btn = document.createElement('button');
   btn.id = BTN_ID;
@@ -226,13 +208,7 @@ export async function ensureSubscribeButton() {
   });
 
   wrap.appendChild(btn);
-
-  if (spot.mode === 'after' && spot.anchor.parentElement) {
-    spot.anchor.insertAdjacentElement('afterend', wrap);
-  } else {
-    spot.anchor.appendChild(wrap);
-  }
-
+  spot.anchor.insertAdjacentElement('afterend', wrap);
   await updateButtonLabel();
   return true;
 }
@@ -243,7 +219,6 @@ export function startChannelPanel() {
     ensureSubscribeButton();
   });
 
-  // YouTube builds the subscribe row late — keep retrying briefly on channel pages
   let tries = 0;
   const timer = setInterval(() => {
     tries += 1;

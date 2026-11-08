@@ -5,43 +5,46 @@ import { openManager } from './manager.js';
 
 const SECTION_ID = 'tf-sidebar-section';
 
-function sectionTitleText(section) {
-  if (!section) return '';
-  return (
-    section.querySelector('#guide-section-title, h3, #header, yt-formatted-string')
-      ?.textContent ||
-    section.textContent ||
-    ''
-  )
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, ' ');
-}
-
-function findGuideSections() {
+function guideSections() {
   return [
     ...document.querySelectorAll(
-      '#sections ytd-guide-section-renderer, #sections yt-guide-section-renderer, ytd-guide-renderer ytd-guide-section-renderer, yt-guide-section-renderer'
+      '#sections > ytd-guide-section-renderer, ytd-guide-renderer #sections > ytd-guide-section-renderer'
     ),
   ];
 }
 
-function findSubscriptionsSection() {
-  for (const section of findGuideSections()) {
-    const title = sectionTitleText(section);
-    // Header text like "Subscriptions"
-    if (title.startsWith('subscription')) return section;
-  }
+function sectionEntries(section) {
+  return [...section.querySelectorAll(':scope ytd-guide-entry-renderer')].map((entry) => {
+    const title = (
+      entry.querySelector('#guide-entry-title, yt-formatted-string')?.textContent || ''
+    )
+      .replace(/\s+/g, ' ')
+      .trim();
+    const href =
+      entry.querySelector('a#endpoint, a.yt-simple-endpoint')?.getAttribute('href') || '';
+    return { title, href, entry };
+  });
+}
 
-  // Fallback: section that contains the subscriptions feed link in its header area
-  for (const section of findGuideSections()) {
-    const headerLink = section.querySelector(
-      'a[href="/feed/subscriptions"], a[href*="/feed/subscriptions"]'
-    );
-    if (!headerLink) continue;
-    // Prefer the section whose first items are channels, not the footer
-    const title = sectionTitleText(section);
-    if (title.includes('subscription') || !title.includes('more from youtube')) {
+/**
+ * Signed-in YouTube guide (verified):
+ *  [0] Home, Shorts
+ *  [1] Subscriptions + channels   ← insert TubeFolders BEFORE this
+ *  [2] You + items
+ */
+function findSubscriptionsSection() {
+  for (const section of guideSections()) {
+    const entries = sectionEntries(section);
+    if (!entries.length) continue;
+    const first = entries[0];
+    if (
+      first.href.includes('/feed/subscriptions') ||
+      /^subscriptions$/i.test(first.title)
+    ) {
+      return section;
+    }
+    // Some layouts put "Subscriptions" header as section title entry among items
+    if (entries.some((e) => e.href.includes('/feed/subscriptions'))) {
       return section;
     }
   }
@@ -49,17 +52,14 @@ function findSubscriptionsSection() {
 }
 
 function isCorrectPlacement(node) {
-  if (!node?.parentElement) return false;
-  const next = node.nextElementSibling;
-  if (!next) return false;
-  const title = sectionTitleText(next);
-  return title.startsWith('subscription') || title.includes('subscription');
+  const next = node?.nextElementSibling;
+  if (!next || next.tagName !== 'YTD-GUIDE-SECTION-RENDERER') return false;
+  const entries = sectionEntries(next);
+  return entries.some(
+    (e) => e.href.includes('/feed/subscriptions') || /^subscriptions$/i.test(e.title)
+  );
 }
 
-/**
- * Place TubeFolders ABOVE Subscriptions (below Home/Shorts).
- * Never append to the footer end of the guide.
- */
 function placeSection(node) {
   const subscriptions = findSubscriptionsSection();
   if (subscriptions?.parentElement) {
@@ -67,26 +67,12 @@ function placeSection(node) {
     return true;
   }
 
-  const sections = findGuideSections();
-  // Typical order: [Home/Shorts] [Subscriptions] [You] ...
-  if (sections.length >= 2 && sections[1]?.parentElement) {
-    sections[1].parentElement.insertBefore(node, sections[1]);
-    return true;
-  }
-
-  if (sections[0]?.parentElement) {
+  // Fallback: after first section (Home/Shorts)
+  const sections = guideSections();
+  if (sections[0]) {
     sections[0].insertAdjacentElement('afterend', node);
     return true;
   }
-
-  const sectionsHost = document.querySelector(
-    'ytd-guide-renderer #sections, yt-guide-renderer #sections, #guide-inner-content #sections'
-  );
-  if (sectionsHost?.firstElementChild) {
-    sectionsHost.insertBefore(node, sectionsHost.children[1] || null);
-    return true;
-  }
-
   return false;
 }
 
@@ -247,14 +233,8 @@ export async function renderSidebar() {
     }
   }
 
-  // Always detach old node, then place above Subscriptions
   existing?.remove();
-  const placed = placeSection(next);
-  if (!placed) {
-    // Keep off-DOM until guide is ready; next observer pass will retry
-    return;
-  }
-
+  if (!placeSection(next)) return;
   if (!isCorrectPlacement(next)) {
     next.remove();
     placeSection(next);

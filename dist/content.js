@@ -23207,40 +23207,41 @@
 
   // src/content/sidebar.js
   var SECTION_ID = "tf-sidebar-section";
-  function sectionTitleText(section) {
-    if (!section) return "";
-    return (section.querySelector("#guide-section-title, h3, #header, yt-formatted-string")?.textContent || section.textContent || "").trim().toLowerCase().replace(/\s+/g, " ");
-  }
-  function findGuideSections() {
+  function guideSections() {
     return [
       ...document.querySelectorAll(
-        "#sections ytd-guide-section-renderer, #sections yt-guide-section-renderer, ytd-guide-renderer ytd-guide-section-renderer, yt-guide-section-renderer"
+        "#sections > ytd-guide-section-renderer, ytd-guide-renderer #sections > ytd-guide-section-renderer"
       )
     ];
   }
+  function sectionEntries(section) {
+    return [...section.querySelectorAll(":scope ytd-guide-entry-renderer")].map((entry) => {
+      const title = (entry.querySelector("#guide-entry-title, yt-formatted-string")?.textContent || "").replace(/\s+/g, " ").trim();
+      const href = entry.querySelector("a#endpoint, a.yt-simple-endpoint")?.getAttribute("href") || "";
+      return { title, href, entry };
+    });
+  }
   function findSubscriptionsSection() {
-    for (const section of findGuideSections()) {
-      const title = sectionTitleText(section);
-      if (title.startsWith("subscription")) return section;
-    }
-    for (const section of findGuideSections()) {
-      const headerLink = section.querySelector(
-        'a[href="/feed/subscriptions"], a[href*="/feed/subscriptions"]'
-      );
-      if (!headerLink) continue;
-      const title = sectionTitleText(section);
-      if (title.includes("subscription") || !title.includes("more from youtube")) {
+    for (const section of guideSections()) {
+      const entries = sectionEntries(section);
+      if (!entries.length) continue;
+      const first = entries[0];
+      if (first.href.includes("/feed/subscriptions") || /^subscriptions$/i.test(first.title)) {
+        return section;
+      }
+      if (entries.some((e) => e.href.includes("/feed/subscriptions"))) {
         return section;
       }
     }
     return null;
   }
   function isCorrectPlacement(node) {
-    if (!node?.parentElement) return false;
-    const next = node.nextElementSibling;
-    if (!next) return false;
-    const title = sectionTitleText(next);
-    return title.startsWith("subscription") || title.includes("subscription");
+    const next = node?.nextElementSibling;
+    if (!next || next.tagName !== "YTD-GUIDE-SECTION-RENDERER") return false;
+    const entries = sectionEntries(next);
+    return entries.some(
+      (e) => e.href.includes("/feed/subscriptions") || /^subscriptions$/i.test(e.title)
+    );
   }
   function placeSection(node) {
     const subscriptions = findSubscriptionsSection();
@@ -23248,20 +23249,9 @@
       subscriptions.parentElement.insertBefore(node, subscriptions);
       return true;
     }
-    const sections = findGuideSections();
-    if (sections.length >= 2 && sections[1]?.parentElement) {
-      sections[1].parentElement.insertBefore(node, sections[1]);
-      return true;
-    }
-    if (sections[0]?.parentElement) {
+    const sections = guideSections();
+    if (sections[0]) {
       sections[0].insertAdjacentElement("afterend", node);
-      return true;
-    }
-    const sectionsHost = document.querySelector(
-      "ytd-guide-renderer #sections, yt-guide-renderer #sections, #guide-inner-content #sections"
-    );
-    if (sectionsHost?.firstElementChild) {
-      sectionsHost.insertBefore(node, sectionsHost.children[1] || null);
       return true;
     }
     return false;
@@ -23377,10 +23367,7 @@
       }
     }
     existing?.remove();
-    const placed = placeSection(next);
-    if (!placed) {
-      return;
-    }
+    if (!placeSection(next)) return;
     if (!isCorrectPlacement(next)) {
       next.remove();
       placeSection(next);
@@ -23459,40 +23446,23 @@
   function escapeHtml3(str) {
     return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
-  function looksLikeSubscribeControl(el) {
-    if (!el) return false;
-    const text = (el.textContent || "").trim().toLowerCase();
-    const aria = (el.getAttribute?.("aria-label") || "").toLowerCase();
-    const hay = `${text} ${aria}`;
-    return hay.includes("subscribe") || hay.includes("subscribed") || hay.includes("\u043F\u043E\u0434\u043F\u0438\u0441") || // Russian subscribe variants
-    el.tagName?.toLowerCase().includes("subscribe");
-  }
   function findSubscribeInsertion() {
-    const tagged = document.querySelector("yt-subscribe-button-view-model") || document.querySelector("ytd-subscribe-button-renderer") || document.querySelector("#subscribe-button");
-    if (tagged) {
-      return { anchor: tagged, mode: "after" };
-    }
-    const actions = document.querySelector("yt-flexible-actions-view-model") || document.querySelector(".ytFlexibleActionsViewModelHost") || document.querySelector("#page-header yt-page-header-view-model") || document.querySelector("#inner-header-container #buttons") || document.querySelector("#channel-header-container #buttons");
-    if (actions) {
-      const buttons = [
-        ...actions.querySelectorAll("button, a, yt-button-view-model, .yt-spec-button-shape-next")
-      ];
-      const sub = buttons.find(looksLikeSubscribeControl);
-      if (sub) {
-        const wrap = sub.closest("yt-button-view-model, yt-subscribe-button-view-model, ytd-subscribe-button-renderer") || sub;
-        return { anchor: wrap, mode: "after" };
-      }
-      return { anchor: actions, mode: "append" };
-    }
-    const header = document.querySelector("#page-header") || document.querySelector("ytd-c4-tabbed-header-renderer") || document.querySelector("#channel-header");
+    const header = document.querySelector("#page-header yt-flexible-actions-view-model") || document.querySelector(
+      "yt-page-header-view-model yt-flexible-actions-view-model"
+    ) || document.querySelector("yt-flexible-actions-view-model");
     if (header) {
-      const candidate = [...header.querySelectorAll("button, yt-button-view-model")].find(
-        looksLikeSubscribeControl
-      );
-      if (candidate) {
-        const wrap = candidate.closest("yt-button-view-model, yt-subscribe-button-view-model") || candidate;
-        return { anchor: wrap, mode: "after" };
+      const subVm2 = header.querySelector("yt-subscribe-button-view-model") || header.querySelector(".ytSubscribeButtonViewModelHost");
+      if (subVm2) {
+        const action = subVm2.closest(".ytFlexibleActionsViewModelAction") || subVm2;
+        return { anchor: action, mode: "after", host: header };
       }
+    }
+    const subVm = document.querySelector(
+      "#page-header yt-subscribe-button-view-model, yt-page-header-view-model yt-subscribe-button-view-model"
+    );
+    if (subVm) {
+      const action = subVm.closest(".ytFlexibleActionsViewModelAction") || subVm;
+      return { anchor: action, mode: "after", host: action.parentElement };
     }
     return null;
   }
@@ -23587,14 +23557,20 @@
       return false;
     }
     if (document.getElementById(BTN_ID)) {
-      await updateButtonLabel();
-      return true;
+      const wrap2 = document.getElementById(WRAP_ID);
+      const spot2 = findSubscribeInsertion();
+      if (wrap2 && spot2?.anchor && wrap2.previousElementSibling !== spot2.anchor && wrap2.parentElement !== spot2.host) {
+        wrap2.remove();
+      } else {
+        await updateButtonLabel();
+        return true;
+      }
     }
     const spot = findSubscribeInsertion();
     if (!spot?.anchor) return false;
     const wrap = document.createElement("div");
     wrap.id = WRAP_ID;
-    wrap.className = "tf-root tf-add-folder-wrap";
+    wrap.className = "tf-root tf-add-folder-wrap ytFlexibleActionsViewModelAction";
     const btn = document.createElement("button");
     btn.id = BTN_ID;
     btn.type = "button";
@@ -23605,11 +23581,7 @@
       openAssignPanel(btn);
     });
     wrap.appendChild(btn);
-    if (spot.mode === "after" && spot.anchor.parentElement) {
-      spot.anchor.insertAdjacentElement("afterend", wrap);
-    } else {
-      spot.anchor.appendChild(wrap);
-    }
+    spot.anchor.insertAdjacentElement("afterend", wrap);
     await updateButtonLabel();
     return true;
   }
