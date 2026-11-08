@@ -25,8 +25,23 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  width: 100%;
   padding: 10px 12px;
+  border: none;
   border-bottom: 1px solid var(--tf-border);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.tf-sidebar-header:hover {
+  background: #1a1a1a;
+}
+
+.tf-sidebar-edit {
+  color: var(--tf-muted);
 }
 
 .tf-sidebar-title {
@@ -120,9 +135,275 @@
 }
 
 .tf-sidebar-empty {
+  display: block;
+  width: 100%;
   padding: 12px;
   font-size: 12px;
   color: var(--tf-muted);
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tf-sidebar-empty:hover {
+  color: var(--tf-text);
+  background: #1a1a1a;
+}
+
+/* In-page manager (like a page, not the tiny extension popup) */
+#tf-manager-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  justify-content: flex-end;
+}
+
+#tf-manager-overlay[hidden] {
+  display: none !important;
+}
+
+.tf-manager-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.tf-manager-panel {
+  position: relative;
+  width: min(420px, 100vw);
+  height: 100%;
+  background: #0a0a0a;
+  border-left: 1px solid #2a2a2a;
+  color: #f5f5f5;
+  font-family: 'Outfit', sans-serif;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tf-manager-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.tf-manager-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tf-manager-brand h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.tf-manager-brand .tf-mark {
+  width: 12px;
+  height: 12px;
+  background: #e11d2e;
+  border-radius: 2px;
+}
+
+.tf-manager-body {
+  padding: 16px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.tf-manager-body h3 {
+  margin: 0 0 10px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9a9a9a;
+  font-weight: 600;
+}
+
+.tf-manager-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: #141414;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+}
+
+.tf-manager-user img {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: #222;
+}
+
+.tf-manager-user > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.tf-manager-user-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.tf-manager-user-email {
+  font-size: 12px;
+  color: #9a9a9a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tf-manager-status {
+  margin-top: 8px;
+  min-height: 16px;
+  font-size: 12px;
+  color: #9a9a9a;
+}
+
+.tf-manager-status.error {
+  color: #e11d2e;
+}
+
+.tf-mgr-input {
+  width: 100%;
+  background: #141414;
+  color: #f5f5f5;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  padding: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  margin-bottom: 10px;
+  outline: none;
+}
+
+.tf-mgr-input:focus {
+  border-color: #e11d2e;
+}
+
+.tf-mgr-icons {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  margin-bottom: 10px;
+  max-height: 160px;
+  overflow: auto;
+}
+
+.tf-mgr-icon {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #141414;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  color: #f5f5f5;
+  cursor: pointer;
+  padding: 0;
+}
+
+.tf-mgr-icon[aria-selected='true'] {
+  border-color: #e11d2e;
+  color: #e11d2e;
+  background: #1a0a0c;
+}
+
+.tf-mgr-btn {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  padding: 8px 12px;
+  cursor: pointer;
+  background: #e11d2e;
+  color: #fff;
+}
+
+.tf-mgr-btn:hover {
+  background: #c41122;
+}
+
+.tf-mgr-btn.ghost {
+  background: transparent;
+  border-color: #2a2a2a;
+  color: #f5f5f5;
+}
+
+.tf-mgr-btn.ghost:hover {
+  background: #141414;
+}
+
+.tf-mgr-btn.danger {
+  background: transparent;
+  border-color: #e11d2e;
+  color: #e11d2e;
+}
+
+.tf-mgr-btn.danger:hover {
+  background: #e11d2e;
+  color: #fff;
+}
+
+.tf-manager-folder {
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  background: #141414;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.tf-manager-folder header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.tf-manager-folder header strong {
+  flex: 1;
+  font-size: 14px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tf-mgr-count {
+  font-size: 12px;
+  color: #9a9a9a;
+}
+
+.tf-manager-folder ul {
+  list-style: none;
+  margin: 0;
+  padding: 8px 10px;
+}
+
+.tf-manager-folder li {
+  font-size: 13px;
+  padding: 4px 0;
+  color: #f5f5f5;
+}
+
+.tf-manager-empty {
+  margin: 0;
+  font-size: 13px;
+  color: #9a9a9a;
 }
 
 /* Filed / unfiled markers on YouTube default list */

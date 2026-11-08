@@ -6,6 +6,7 @@ import {
 } from 'firebase/auth';
 import { oauthClientId, isFirebaseConfigured } from '../config.js';
 import { getFirebaseAuth, whenAuthReady } from './firebase.js';
+import { setAuthMeta } from './storage.js';
 
 async function readyAuth() {
   await whenAuthReady();
@@ -74,10 +75,17 @@ export async function signInWithGoogle() {
   const credential = GoogleAuthProvider.credential(null, accessToken);
   const auth = await readyAuth();
   const result = await signInWithCredential(auth, credential);
+  await setAuthMeta({
+    uid: result.user.uid,
+    email: result.user.email || '',
+    displayName: result.user.displayName || '',
+    photoURL: result.user.photoURL || '',
+  });
   return result.user;
 }
 
 export async function signOut() {
   const auth = await readyAuth();
   await fbSignOut(auth);
+  await setAuthMeta(null);
 }

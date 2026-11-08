@@ -1,5 +1,6 @@
 import { getLibrary, onLibraryChange } from '../lib/storage.js';
 import { iconHtml } from '../lib/icons.js';
+import { openManager } from './manager.js';
 
 const SECTION_ID = 'tf-sidebar-section';
 
@@ -11,17 +12,27 @@ function findSubscriptionsAnchor() {
   ];
   for (const section of entries) {
     const title = (
-      section.querySelector('#guide-section-title, h3, #header')?.textContent ||
-      ''
+      section.querySelector('#guide-section-title, h3, #header, yt-formatted-string')
+        ?.textContent || ''
     )
       .trim()
       .toLowerCase();
     if (title.includes('subscription')) return section;
   }
 
-  // Fallback: first guide entry that looks like a channel avatar row
-  const guide = document.querySelector('#guide-inner-content, ytd-guide-renderer');
-  return guide || null;
+  // Prefer placing near subscription entries rather than the very top of the guide
+  const subEntry = [...document.querySelectorAll('a#endpoint, a.yt-simple-endpoint')].find(
+    (a) => (a.getAttribute('href') || '').includes('/feed/subscriptions')
+  );
+  if (subEntry) {
+    return (
+      subEntry.closest('ytd-guide-section-renderer, yt-guide-section-renderer') ||
+      subEntry.closest('#sections') ||
+      subEntry
+    );
+  }
+
+  return document.querySelector('#guide-inner-content, ytd-guide-renderer');
 }
 
 function channelHref(channel) {
@@ -43,12 +54,13 @@ function buildSection(library) {
   const channels = library.channels || {};
 
   section.innerHTML = `
-    <div class="tf-sidebar-header">
+    <button type="button" class="tf-sidebar-header tf-sidebar-open" title="Manage TubeFolders">
       <h2 class="tf-sidebar-title"><span class="tf-mark"></span> TubeFolders</h2>
-    </div>
+      <span class="tf-sidebar-edit">${iconHtml('Pencil', 'tf-icon')}</span>
+    </button>
     ${
       folders.length === 0
-        ? `<div class="tf-sidebar-empty">Create folders in the TubeFolders extension popup.</div>`
+        ? `<button type="button" class="tf-sidebar-empty tf-sidebar-open">Click to create and manage folders</button>`
         : folders
             .map((folder) => {
               const items = (folder.channelIds || [])
@@ -77,7 +89,7 @@ function buildSection(library) {
                   </a>`
                         )
                         .join('')
-                    : `<div class="tf-sidebar-empty">No channels in this folder</div>`
+                    : `<button type="button" class="tf-sidebar-empty tf-sidebar-open">No channels — manage folders</button>`
                 }
               </div>
             </div>`;
@@ -87,6 +99,11 @@ function buildSection(library) {
   `;
 
   section.addEventListener('click', (e) => {
+    if (e.target.closest('.tf-sidebar-open')) {
+      e.preventDefault();
+      openManager();
+      return;
+    }
     const toggle = e.target.closest('.tf-folder-toggle');
     if (!toggle) return;
     const folder = toggle.closest('.tf-folder');
@@ -116,8 +133,23 @@ function escapeAttr(str) {
 
 export async function renderSidebar() {
   const existing = document.getElementById(SECTION_ID);
+  const openFolders = new Set(
+    [...(existing?.querySelectorAll('.tf-folder[data-open="true"]') || [])].map(
+      (el) => el.dataset.folderId
+    )
+  );
   const library = await getLibrary();
   const next = buildSection(library);
+  for (const id of openFolders) {
+    const folder = next.querySelector(`.tf-folder[data-folder-id="${id}"]`);
+    if (folder) {
+      folder.setAttribute('data-open', 'true');
+      const toggle = folder.querySelector('.tf-folder-toggle');
+      const chevron = folder.querySelector('.tf-chevron');
+      if (toggle) toggle.setAttribute('aria-expanded', 'true');
+      if (chevron) chevron.innerHTML = iconHtml('ChevronDown', 'tf-icon');
+    }
+  }
 
   if (existing) {
     existing.replaceWith(next);
@@ -129,8 +161,10 @@ export async function renderSidebar() {
 
   if (anchor.matches?.('ytd-guide-section-renderer, yt-guide-section-renderer')) {
     anchor.parentElement?.insertBefore(next, anchor);
+  } else if (anchor.parentElement) {
+    anchor.parentElement.insertBefore(next, anchor);
   } else {
-    anchor.prepend(next);
+    anchor.prepend?.(next);
   }
 }
 

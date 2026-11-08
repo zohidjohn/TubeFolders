@@ -5580,6 +5580,9 @@ async function _signInWithCredential(auth2, credential, bypassAuthState = false)
   }
   return userCredential;
 }
+async function signInWithCredential(auth2, credential) {
+  return _signInWithCredential(_castAuth(auth2), credential);
+}
 function setPersistence(auth2, persistence) {
   return getModularInstance(auth2).setPersistence(persistence);
 }
@@ -5591,6 +5594,9 @@ function beforeAuthStateChanged(auth2, callback, onAbort) {
 }
 function onAuthStateChanged(auth2, nextOrObserver, error, completed) {
   return getModularInstance(auth2).onAuthStateChanged(nextOrObserver, error, completed);
+}
+function signOut(auth2) {
+  return getModularInstance(auth2).signOut();
 }
 function startEnrollPhoneMfa(auth2, request) {
   return _performApiRequest(auth2, "POST", "/v2/accounts/mfaEnrollment:start", _addTidIfNecessary(auth2, request));
@@ -32615,52 +32621,12 @@ function getFirebaseAuth() {
   }
   return auth2;
 }
+function whenAuthReady() {
+  getFirebaseAuth();
+  return authReady || Promise.resolve();
+}
 function getDb() {
   return getFirestore(getFirebaseApp());
-}
-
-// src/lib/auth.js
-function getCurrentUser() {
-  return getFirebaseAuth().currentUser;
-}
-
-// src/lib/firestore.js
-function libraryRef(uid) {
-  return doc(getDb(), "users", uid, "data", "library");
-}
-function profileRef(uid) {
-  return doc(getDb(), "users", uid);
-}
-async function saveUserProfile(user) {
-  await setDoc(
-    profileRef(user.uid),
-    {
-      email: user.email || "",
-      displayName: user.displayName || "",
-      photoURL: user.photoURL || "",
-      updatedAt: serverTimestamp()
-    },
-    { merge: true }
-  );
-}
-async function loadLibrary(uid) {
-  const snap = await getDoc(libraryRef(uid));
-  if (!snap.exists()) {
-    return { folders: [], channels: {}, updatedAt: null };
-  }
-  const data = snap.data();
-  return {
-    folders: Array.isArray(data.folders) ? data.folders : [],
-    channels: data.channels && typeof data.channels === "object" ? data.channels : {},
-    updatedAt: data.updatedAt?.toMillis?.() ?? null
-  };
-}
-async function saveLibrary(uid, library) {
-  await setDoc(libraryRef(uid), {
-    folders: library.folders || [],
-    channels: library.channels || {},
-    updatedAt: serverTimestamp()
-  });
 }
 
 // src/lib/storage.js
@@ -32701,6 +32667,111 @@ async function clearDirty() {
 }
 async function setAuthMeta(meta) {
   await chrome.storage.local.set({ [AUTH_META_KEY]: meta || null });
+}
+async function getAuthMeta() {
+  const data = await chrome.storage.local.get(AUTH_META_KEY);
+  return data[AUTH_META_KEY] || null;
+}
+
+// src/lib/auth.js
+async function readyAuth() {
+  await whenAuthReady();
+  return getFirebaseAuth();
+}
+function getRedirectUrl() {
+  return typeof chrome !== "undefined" && chrome.identity ? chrome.identity.getRedirectURL() : "";
+}
+function buildAuthUrl() {
+  const redirectUri = encodeURIComponent(getRedirectUrl());
+  const clientId = encodeURIComponent(oauthClientId);
+  return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&response_type=token&redirect_uri=${redirectUri}&scope=${encodeURIComponent("email profile")}&prompt=select_account`;
+}
+function parseAccessToken(redirectUrl) {
+  const hash = redirectUrl.split("#")[1] || "";
+  const params = new URLSearchParams(hash);
+  const token = params.get("access_token");
+  if (!token) {
+    throw new Error("No access_token in OAuth redirect");
+  }
+  return token;
+}
+function getCurrentUser() {
+  return getFirebaseAuth().currentUser;
+}
+async function signInWithGoogle() {
+  if (!isFirebaseConfigured()) {
+    throw new Error(
+      "Firebase is not configured. Edit src/config.js with your project values."
+    );
+  }
+  const authUrl = buildAuthUrl();
+  const redirectUrl = await new Promise((resolve, reject) => {
+    chrome.identity.launchWebAuthFlow(
+      { url: authUrl, interactive: true },
+      (responseUrl) => {
+        if (chrome.runtime.lastError || !responseUrl) {
+          reject(new Error(chrome.runtime.lastError?.message || "Auth cancelled"));
+          return;
+        }
+        resolve(responseUrl);
+      }
+    );
+  });
+  const accessToken = parseAccessToken(redirectUrl);
+  const credential = GoogleAuthProvider.credential(null, accessToken);
+  const auth2 = await readyAuth();
+  const result = await signInWithCredential(auth2, credential);
+  await setAuthMeta({
+    uid: result.user.uid,
+    email: result.user.email || "",
+    displayName: result.user.displayName || "",
+    photoURL: result.user.photoURL || ""
+  });
+  return result.user;
+}
+async function signOut2() {
+  const auth2 = await readyAuth();
+  await signOut(auth2);
+  await setAuthMeta(null);
+}
+
+// src/lib/firestore.js
+function libraryRef(uid) {
+  return doc(getDb(), "users", uid, "data", "library");
+}
+function profileRef(uid) {
+  return doc(getDb(), "users", uid);
+}
+async function saveUserProfile(user) {
+  await setDoc(
+    profileRef(user.uid),
+    {
+      email: user.email || "",
+      displayName: user.displayName || "",
+      photoURL: user.photoURL || "",
+      updatedAt: serverTimestamp()
+    },
+    { merge: true }
+  );
+}
+async function loadLibrary(uid) {
+  const snap = await getDoc(libraryRef(uid));
+  if (!snap.exists()) {
+    return { folders: [], channels: {}, updatedAt: null };
+  }
+  const data = snap.data();
+  return {
+    folders: Array.isArray(data.folders) ? data.folders : [],
+    channels: data.channels && typeof data.channels === "object" ? data.channels : {},
+    updatedAt: data.updatedAt?.toMillis?.() ?? null
+  };
+}
+async function saveLibrary(uid, library) {
+  await setDoc(libraryRef(uid), {
+    folders: library.folders || [],
+    channels: library.channels || {},
+    updatedAt: serverTimestamp()
+  });
 }
 
 // src/lib/sync.js
@@ -32776,27 +32847,35 @@ function initFirebase() {
   return getAuth();
 }
 var auth = initFirebase();
+async function persistUser(user) {
+  if (!user) {
+    await setAuthMeta(null);
+    return null;
+  }
+  const meta = {
+    uid: user.uid,
+    email: user.email || "",
+    displayName: user.displayName || "",
+    photoURL: user.photoURL || ""
+  };
+  await setAuthMeta(meta);
+  return meta;
+}
 if (auth) {
   onAuthStateChanged(auth, async (user) => {
+    await persistUser(user);
     if (user) {
-      await setAuthMeta({
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        photoURL: user.photoURL
-      });
       try {
         await syncLibrary();
       } catch (err) {
         console.warn("[TubeFolders] sync failed", err);
       }
-    } else {
-      await setAuthMeta(null);
     }
   });
 }
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type === "tf-sync") {
+  const type = message?.type;
+  if (type === "tf-sync") {
     (async () => {
       try {
         if (!isFirebaseConfigured()) {
@@ -32808,6 +32887,41 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       } catch (err) {
         sendResponse({ ok: false, error: err.message });
       }
+    })();
+    return true;
+  }
+  if (type === "tf-signin") {
+    (async () => {
+      try {
+        const user = await signInWithGoogle();
+        const meta = await persistUser(user);
+        try {
+          await syncLibrary();
+        } catch {
+        }
+        sendResponse({ ok: true, user: meta });
+      } catch (err) {
+        sendResponse({ ok: false, error: err.message });
+      }
+    })();
+    return true;
+  }
+  if (type === "tf-signout") {
+    (async () => {
+      try {
+        await signOut2();
+        await persistUser(null);
+        sendResponse({ ok: true });
+      } catch (err) {
+        sendResponse({ ok: false, error: err.message });
+      }
+    })();
+    return true;
+  }
+  if (type === "tf-get-auth") {
+    (async () => {
+      const meta = await getAuthMeta();
+      sendResponse({ ok: true, user: meta });
     })();
     return true;
   }

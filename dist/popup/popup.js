@@ -5590,9 +5590,6 @@ async function _signInWithCredential(auth, credential, bypassAuthState = false) 
   }
   return userCredential;
 }
-async function signInWithCredential(auth, credential) {
-  return _signInWithCredential(_castAuth(auth), credential);
-}
 function setPersistence(auth, persistence) {
   return getModularInstance(auth).setPersistence(persistence);
 }
@@ -5604,9 +5601,6 @@ function beforeAuthStateChanged(auth, callback, onAbort) {
 }
 function onAuthStateChanged(auth, nextOrObserver, error, completed) {
   return getModularInstance(auth).onAuthStateChanged(nextOrObserver, error, completed);
-}
-function signOut(auth) {
-  return getModularInstance(auth).signOut();
 }
 function startEnrollPhoneMfa(auth, request) {
   return _performApiRequest(auth, "POST", "/v2/accounts/mfaEnrollment:start", _addTidIfNecessary(auth, request));
@@ -32621,70 +32615,8 @@ function getFirebaseAuth() {
   }
   return auth;
 }
-function whenAuthReady() {
-  getFirebaseAuth();
-  return authReady || Promise.resolve();
-}
 function getDb() {
   return getFirestore(getFirebaseApp());
-}
-
-// src/lib/auth.js
-async function readyAuth() {
-  await whenAuthReady();
-  return getFirebaseAuth();
-}
-function getRedirectUrl() {
-  return typeof chrome !== "undefined" && chrome.identity ? chrome.identity.getRedirectURL() : "";
-}
-function buildAuthUrl() {
-  const redirectUri = encodeURIComponent(getRedirectUrl());
-  const clientId = encodeURIComponent(oauthClientId);
-  return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&response_type=token&redirect_uri=${redirectUri}&scope=${encodeURIComponent("email profile")}&prompt=select_account`;
-}
-function parseAccessToken(redirectUrl) {
-  const hash = redirectUrl.split("#")[1] || "";
-  const params = new URLSearchParams(hash);
-  const token = params.get("access_token");
-  if (!token) {
-    throw new Error("No access_token in OAuth redirect");
-  }
-  return token;
-}
-function watchAuth(callback) {
-  return onAuthStateChanged(getFirebaseAuth(), callback);
-}
-function getCurrentUser() {
-  return getFirebaseAuth().currentUser;
-}
-async function signInWithGoogle() {
-  if (!isFirebaseConfigured()) {
-    throw new Error(
-      "Firebase is not configured. Edit src/config.js with your project values."
-    );
-  }
-  const authUrl = buildAuthUrl();
-  const redirectUrl = await new Promise((resolve, reject) => {
-    chrome.identity.launchWebAuthFlow(
-      { url: authUrl, interactive: true },
-      (responseUrl) => {
-        if (chrome.runtime.lastError || !responseUrl) {
-          reject(new Error(chrome.runtime.lastError?.message || "Auth cancelled"));
-          return;
-        }
-        resolve(responseUrl);
-      }
-    );
-  });
-  const accessToken = parseAccessToken(redirectUrl);
-  const credential = GoogleAuthProvider.credential(null, accessToken);
-  const auth = await readyAuth();
-  const result = await signInWithCredential(auth, credential);
-  return result.user;
-}
-async function signOut2() {
-  const auth = await readyAuth();
-  await signOut(auth);
 }
 
 // src/lib/storage.js
@@ -32766,6 +32698,14 @@ function onLibraryChange(callback) {
   };
   chrome.storage.onChanged.addListener(listener);
   return () => chrome.storage.onChanged.removeListener(listener);
+}
+
+// src/lib/auth.js
+function watchAuth(callback) {
+  return onAuthStateChanged(getFirebaseAuth(), callback);
+}
+function getCurrentUser() {
+  return getFirebaseAuth().currentUser;
 }
 
 // src/lib/backup.js
@@ -33143,18 +33083,19 @@ els.folderList.addEventListener("click", async (e2) => {
 els.btnSignIn.addEventListener("click", async () => {
   try {
     setStatus("Opening Google sign-in\u2026");
-    const user = await signInWithGoogle();
-    setAuthUi(user);
-    await syncLibrary();
+    const response = await chrome.runtime.sendMessage({ type: "tf-signin" });
+    if (!response?.ok) throw new Error(response?.error || "Sign-in failed");
+    setAuthUi(response.user);
     await refresh();
-    setStatus("Signed in and synced");
+    setStatus(`Signed in as ${response.user?.displayName || response.user?.email || "user"}`);
   } catch (err) {
     setStatus(err.message || "Sign-in failed", true);
   }
 });
 els.btnSignOut.addEventListener("click", async () => {
   try {
-    await signOut2();
+    const response = await chrome.runtime.sendMessage({ type: "tf-signout" });
+    if (!response?.ok) throw new Error(response?.error || "Sign-out failed");
     setAuthUi(null);
     setStatus("Signed out (local folders kept)");
   } catch (err) {
@@ -33202,26 +33143,48 @@ els.btnSync.addEventListener("click", async () => {
     setStatus(err.message || "Sync failed", true);
   }
 });
+async function restoreAuthUi() {
+  const meta = await getAuthMeta();
+  if (meta?.uid || meta?.email || meta?.displayName) {
+    setAuthUi(meta);
+    return meta;
+  }
+  return null;
+}
 renderIconGrid();
 refresh();
 onLibraryChange(() => refresh());
+restoreAuthUi();
 if (isFirebaseConfigured()) {
   watchAuth(async (user) => {
-    setAuthUi(user);
     if (user) {
+      setAuthUi({
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL
+      });
       try {
         await pullFromCloud();
         await refresh();
       } catch {
       }
+    } else {
+      const meta = await getAuthMeta();
+      if (meta) setAuthUi(meta);
+      else setAuthUi(null);
     }
   });
 } else {
-  getAuthMeta().then((meta) => {
-    if (meta) setAuthUi(meta);
-  });
   setStatus("Local mode \u2014 add Firebase keys in src/config.js to enable cloud sync");
 }
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.authMeta) {
+    const meta = changes.authMeta.newValue;
+    if (meta) setAuthUi(meta);
+    else setAuthUi(null);
+  }
+});
 /*! Bundled license information:
 
 @firebase/util/dist/index.esm.js:

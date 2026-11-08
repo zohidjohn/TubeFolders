@@ -1,6 +1,7 @@
 (() => {
   // src/lib/storage.js
   var LIBRARY_KEY = "library";
+  var AUTH_META_KEY = "authMeta";
   var DIRTY_KEY = "libraryDirty";
   function emptyLibrary() {
     return { folders: [], channels: {}, updatedAt: 0 };
@@ -26,6 +27,38 @@
       [DIRTY_KEY]: dirty
     });
     return next;
+  }
+  async function getAuthMeta() {
+    const data = await chrome.storage.local.get(AUTH_META_KEY);
+    return data[AUTH_META_KEY] || null;
+  }
+  function createId() {
+    return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  }
+  async function createFolder({ name, icon }) {
+    const lib = await getLibrary();
+    const folder = {
+      id: createId(),
+      name: (name || "New folder").trim() || "New folder",
+      icon: icon || "Folder",
+      channelIds: []
+    };
+    lib.folders.push(folder);
+    await setLibrary(lib);
+    return folder;
+  }
+  async function updateFolder(folderId, patch) {
+    const lib = await getLibrary();
+    const idx = lib.folders.findIndex((f) => f.id === folderId);
+    if (idx === -1) throw new Error("Folder not found");
+    lib.folders[idx] = { ...lib.folders[idx], ...patch, id: folderId };
+    await setLibrary(lib);
+    return lib.folders[idx];
+  }
+  async function deleteFolder(folderId) {
+    const lib = await getLibrary();
+    lib.folders = lib.folders.filter((f) => f.id !== folderId);
+    await setLibrary(lib);
   }
   async function setChannelFolders(channel, folderIds) {
     const lib = await getLibrary();
@@ -105,12 +138,234 @@
     X: svg('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'),
     FolderPlus: svg('<path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>')
   };
+  var FOLDER_ICON_NAMES = [
+    "Folder",
+    "Gamepad2",
+    "Music",
+    "Newspaper",
+    "GraduationCap",
+    "Cpu",
+    "Clapperboard",
+    "Dumbbell",
+    "Utensils",
+    "Plane",
+    "Briefcase",
+    "Heart",
+    "Laugh",
+    "Code2",
+    "Mic",
+    "Camera",
+    "Globe",
+    "Star",
+    "Zap",
+    "BookOpen",
+    "Car",
+    "Baby",
+    "Landmark",
+    "Radio",
+    "Wrench"
+  ];
   function getIconSvg(name) {
     return ICONS[name] || ICONS.Folder;
   }
   function iconHtml(name, className = "tf-icon") {
     const raw = getIconSvg(name);
     return raw.replace("<svg ", `<svg class="${className}" aria-hidden="true" `);
+  }
+
+  // src/content/manager.js
+  var OVERLAY_ID = "tf-manager-overlay";
+  var selectedIcon = "Folder";
+  var unbound = null;
+  function escapeHtml(str) {
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  function send(type, payload = {}) {
+    return new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage({ type, ...payload }, (res) => {
+          void chrome.runtime.lastError;
+          resolve(res || { ok: false });
+        });
+      } catch {
+        resolve({ ok: false });
+      }
+    });
+  }
+  function channelLabel(ch) {
+    return ch?.name || ch?.handle || ch?.id || "Channel";
+  }
+  async function renderBody(overlay) {
+    const library = await getLibrary();
+    const auth = await getAuthMeta();
+    const folders = library.folders || [];
+    const channels = library.channels || {};
+    const body = overlay.querySelector(".tf-manager-body");
+    if (!body) return;
+    body.innerHTML = `
+    <section class="tf-manager-auth">
+      ${auth ? `<div class="tf-manager-user">
+              ${auth.photoURL ? `<img src="${escapeHtml(auth.photoURL)}" alt="" />` : ""}
+              <div>
+                <div class="tf-manager-user-name">${escapeHtml(auth.displayName || "Signed in")}</div>
+                <div class="tf-manager-user-email">${escapeHtml(auth.email || "")}</div>
+              </div>
+              <button type="button" class="tf-mgr-btn ghost" data-action="signout">Sign out</button>
+            </div>` : `<div class="tf-manager-user">
+              <div>
+                <div class="tf-manager-user-name">Not signed in</div>
+                <div class="tf-manager-user-email">Sign in to sync folders to the cloud</div>
+              </div>
+              <button type="button" class="tf-mgr-btn" data-action="signin">Sign in with Google</button>
+            </div>`}
+      <div class="tf-manager-status" data-role="status"></div>
+    </section>
+
+    <section class="tf-manager-create">
+      <h3>New folder</h3>
+      <input class="tf-mgr-input" data-role="folder-name" type="text" maxlength="48" placeholder="Folder name" />
+      <div class="tf-mgr-icons" data-role="icon-grid">
+        ${FOLDER_ICON_NAMES.map(
+      (name) => `
+          <button type="button" class="tf-mgr-icon" data-icon="${name}" aria-selected="${name === selectedIcon}" title="${name}">
+            ${iconHtml(name, "tf-icon")}
+          </button>`
+    ).join("")}
+      </div>
+      <button type="button" class="tf-mgr-btn" data-action="create">Create folder</button>
+    </section>
+
+    <section class="tf-manager-folders">
+      <h3>Your folders</h3>
+      ${folders.length === 0 ? `<p class="tf-manager-empty">No folders yet. Create one above.</p>` : folders.map((folder) => {
+      const items = (folder.channelIds || []).map((id) => channels[id]).filter(Boolean);
+      return `
+              <article class="tf-manager-folder" data-id="${folder.id}">
+                <header>
+                  ${iconHtml(folder.icon || "Folder", "tf-icon tf-icon-lg")}
+                  <strong>${escapeHtml(folder.name)}</strong>
+                  <span class="tf-mgr-count">${items.length}</span>
+                  <button type="button" class="tf-mgr-btn ghost" data-action="rename" data-id="${folder.id}">Rename</button>
+                  <button type="button" class="tf-mgr-btn danger" data-action="delete" data-id="${folder.id}">Delete</button>
+                </header>
+                <ul>
+                  ${items.length ? items.map(
+        (ch) => `<li>${escapeHtml(channelLabel(ch))}</li>`
+      ).join("") : `<li class="tf-manager-empty">No channels \u2014 open a channel page to add it</li>`}
+                </ul>
+              </article>`;
+    }).join("")}
+    </section>
+  `;
+  }
+  function setStatus(overlay, message, isError = false) {
+    const el = overlay.querySelector('[data-role="status"]');
+    if (!el) return;
+    el.textContent = message || "";
+    el.classList.toggle("error", Boolean(isError));
+  }
+  async function handleAction(overlay, action, target) {
+    try {
+      if (action === "close") {
+        closeManager();
+        return;
+      }
+      if (action === "signin") {
+        setStatus(overlay, "Opening Google sign-in\u2026");
+        const res = await send("tf-signin");
+        if (!res.ok) throw new Error(res.error || "Sign-in failed");
+        setStatus(overlay, `Signed in as ${res.user?.displayName || res.user?.email || "user"}`);
+        await renderBody(overlay);
+        return;
+      }
+      if (action === "signout") {
+        await send("tf-signout");
+        setStatus(overlay, "Signed out");
+        await renderBody(overlay);
+        return;
+      }
+      if (action === "create") {
+        const input = overlay.querySelector('[data-role="folder-name"]');
+        const name = input?.value?.trim() || "";
+        await createFolder({ name, icon: selectedIcon });
+        if (input) input.value = "";
+        await send("tf-sync");
+        setStatus(overlay, "Folder created");
+        await renderBody(overlay);
+        return;
+      }
+      if (action === "rename") {
+        const id = target.dataset.id;
+        const next = prompt("Folder name");
+        if (!next || !next.trim()) return;
+        await updateFolder(id, { name: next.trim() });
+        await send("tf-sync");
+        setStatus(overlay, "Folder renamed");
+        await renderBody(overlay);
+        return;
+      }
+      if (action === "delete") {
+        const id = target.dataset.id;
+        if (!confirm("Delete this folder?")) return;
+        await deleteFolder(id);
+        await send("tf-sync");
+        setStatus(overlay, "Folder deleted");
+        await renderBody(overlay);
+      }
+    } catch (err) {
+      setStatus(overlay, err.message || "Something went wrong", true);
+    }
+  }
+  async function openManager() {
+    let overlay = document.getElementById(OVERLAY_ID);
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = OVERLAY_ID;
+      overlay.className = "tf-root";
+      overlay.innerHTML = `
+      <div class="tf-manager-backdrop" data-action="close"></div>
+      <div class="tf-manager-panel" role="dialog" aria-label="TubeFolders manager">
+        <header class="tf-manager-header">
+          <div class="tf-manager-brand">
+            <span class="tf-mark"></span>
+            <h2>TubeFolders</h2>
+          </div>
+          <button type="button" class="tf-mgr-btn ghost" data-action="close" aria-label="Close">
+            ${iconHtml("X", "tf-icon")}
+          </button>
+        </header>
+        <div class="tf-manager-body"></div>
+      </div>
+    `;
+      overlay.addEventListener("click", async (e) => {
+        const iconBtn = e.target.closest("[data-icon]");
+        if (iconBtn && overlay.contains(iconBtn)) {
+          selectedIcon = iconBtn.dataset.icon;
+          overlay.querySelectorAll("[data-icon]").forEach((btn) => {
+            btn.setAttribute("aria-selected", btn.dataset.icon === selectedIcon ? "true" : "false");
+          });
+          return;
+        }
+        const actionBtn = e.target.closest("[data-action]");
+        if (!actionBtn || !overlay.contains(actionBtn)) return;
+        await handleAction(overlay, actionBtn.dataset.action, actionBtn);
+      });
+      document.documentElement.appendChild(overlay);
+    }
+    overlay.hidden = false;
+    document.documentElement.classList.add("tf-manager-open");
+    await renderBody(overlay);
+    if (!unbound) {
+      unbound = onLibraryChange(() => {
+        const el = document.getElementById(OVERLAY_ID);
+        if (el && !el.hidden) renderBody(el);
+      });
+    }
+  }
+  function closeManager() {
+    const overlay = document.getElementById(OVERLAY_ID);
+    if (overlay) overlay.hidden = true;
+    document.documentElement.classList.remove("tf-manager-open");
   }
 
   // src/content/sidebar.js
@@ -122,11 +377,16 @@
       )
     ];
     for (const section of entries) {
-      const title = (section.querySelector("#guide-section-title, h3, #header")?.textContent || "").trim().toLowerCase();
+      const title = (section.querySelector("#guide-section-title, h3, #header, yt-formatted-string")?.textContent || "").trim().toLowerCase();
       if (title.includes("subscription")) return section;
     }
-    const guide = document.querySelector("#guide-inner-content, ytd-guide-renderer");
-    return guide || null;
+    const subEntry = [...document.querySelectorAll("a#endpoint, a.yt-simple-endpoint")].find(
+      (a) => (a.getAttribute("href") || "").includes("/feed/subscriptions")
+    );
+    if (subEntry) {
+      return subEntry.closest("ytd-guide-section-renderer, yt-guide-section-renderer") || subEntry.closest("#sections") || subEntry;
+    }
+    return document.querySelector("#guide-inner-content, ytd-guide-renderer");
   }
   function channelHref(channel) {
     if (channel.href) return channel.href;
@@ -144,16 +404,17 @@
     const folders = library.folders || [];
     const channels = library.channels || {};
     section.innerHTML = `
-    <div class="tf-sidebar-header">
+    <button type="button" class="tf-sidebar-header tf-sidebar-open" title="Manage TubeFolders">
       <h2 class="tf-sidebar-title"><span class="tf-mark"></span> TubeFolders</h2>
-    </div>
-    ${folders.length === 0 ? `<div class="tf-sidebar-empty">Create folders in the TubeFolders extension popup.</div>` : folders.map((folder) => {
+      <span class="tf-sidebar-edit">${iconHtml("Pencil", "tf-icon")}</span>
+    </button>
+    ${folders.length === 0 ? `<button type="button" class="tf-sidebar-empty tf-sidebar-open">Click to create and manage folders</button>` : folders.map((folder) => {
       const items = (folder.channelIds || []).map((id) => channels[id]).filter(Boolean);
       return `
             <div class="tf-folder" data-folder-id="${folder.id}" data-open="false">
               <button type="button" class="tf-folder-toggle" aria-expanded="false">
                 ${iconHtml(folder.icon || "Folder", "tf-icon")}
-                <span>${escapeHtml(folder.name)}</span>
+                <span>${escapeHtml2(folder.name)}</span>
                 <span class="tf-chevron">${iconHtml("ChevronRight", "tf-icon")}</span>
               </button>
               <div class="tf-folder-channels">
@@ -161,14 +422,19 @@
         (ch) => `
                   <a class="tf-channel-link" href="${escapeAttr(channelHref(ch))}">
                     ${ch.avatarUrl ? `<img src="${escapeAttr(ch.avatarUrl)}" alt="" width="24" height="24" />` : `<span class="tf-icon">${iconHtml("Folder", "tf-icon")}</span>`}
-                    <span>${escapeHtml(ch.name || ch.handle || ch.id)}</span>
+                    <span>${escapeHtml2(ch.name || ch.handle || ch.id)}</span>
                   </a>`
-      ).join("") : `<div class="tf-sidebar-empty">No channels in this folder</div>`}
+      ).join("") : `<button type="button" class="tf-sidebar-empty tf-sidebar-open">No channels \u2014 manage folders</button>`}
               </div>
             </div>`;
     }).join("")}
   `;
     section.addEventListener("click", (e) => {
+      if (e.target.closest(".tf-sidebar-open")) {
+        e.preventDefault();
+        openManager();
+        return;
+      }
       const toggle = e.target.closest(".tf-folder-toggle");
       if (!toggle) return;
       const folder = toggle.closest(".tf-folder");
@@ -182,16 +448,31 @@
     });
     return section;
   }
-  function escapeHtml(str) {
+  function escapeHtml2(str) {
     return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
   function escapeAttr(str) {
-    return escapeHtml(str).replace(/'/g, "&#39;");
+    return escapeHtml2(str).replace(/'/g, "&#39;");
   }
   async function renderSidebar() {
     const existing = document.getElementById(SECTION_ID);
+    const openFolders = new Set(
+      [...existing?.querySelectorAll('.tf-folder[data-open="true"]') || []].map(
+        (el) => el.dataset.folderId
+      )
+    );
     const library = await getLibrary();
     const next = buildSection(library);
+    for (const id of openFolders) {
+      const folder = next.querySelector(`.tf-folder[data-folder-id="${id}"]`);
+      if (folder) {
+        folder.setAttribute("data-open", "true");
+        const toggle = folder.querySelector(".tf-folder-toggle");
+        const chevron = folder.querySelector(".tf-chevron");
+        if (toggle) toggle.setAttribute("aria-expanded", "true");
+        if (chevron) chevron.innerHTML = iconHtml("ChevronDown", "tf-icon");
+      }
+    }
     if (existing) {
       existing.replaceWith(next);
       return;
@@ -200,8 +481,10 @@
     if (!anchor) return;
     if (anchor.matches?.("ytd-guide-section-renderer, yt-guide-section-renderer")) {
       anchor.parentElement?.insertBefore(next, anchor);
+    } else if (anchor.parentElement) {
+      anchor.parentElement.insertBefore(next, anchor);
     } else {
-      anchor.prepend(next);
+      anchor.prepend?.(next);
     }
   }
   function startSidebar() {
@@ -367,14 +650,14 @@
     panel.className = "tf-root";
     panel.innerHTML = `
     <h3>Add to folders</h3>
-    <div class="tf-channel-meta">${escapeHtml2(channel.name)}</div>
+    <div class="tf-channel-meta">${escapeHtml3(channel.name)}</div>
     <div class="tf-check-list">
       ${folders.length ? folders.map(
       (folder) => `
         <label>
           <input type="checkbox" value="${folder.id}" ${membership.has(folder.id) ? "checked" : ""} />
           ${iconHtml(folder.icon || "Folder", "tf-icon")}
-          <span>${escapeHtml2(folder.name)}</span>
+          <span>${escapeHtml3(folder.name)}</span>
         </label>`
     ).join("") : `<div class="tf-sidebar-empty">Create a folder in the extension popup first.</div>`}
     </div>
@@ -398,7 +681,7 @@
     });
     document.documentElement.appendChild(panel);
   }
-  function escapeHtml2(str) {
+  function escapeHtml3(str) {
     return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
   function startChannelPanel() {

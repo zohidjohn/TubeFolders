@@ -1,5 +1,5 @@
 import { isFirebaseConfigured } from '../config.js';
-import { signInWithGoogle, signOut, watchAuth } from '../lib/auth.js';
+import { watchAuth } from '../lib/auth.js';
 import {
   exportLibraryJson,
   downloadBackup,
@@ -155,11 +155,11 @@ els.folderList.addEventListener('click', async (e) => {
 els.btnSignIn.addEventListener('click', async () => {
   try {
     setStatus('Opening Google sign-in…');
-    const user = await signInWithGoogle();
-    setAuthUi(user);
-    await syncLibrary();
+    const response = await chrome.runtime.sendMessage({ type: 'tf-signin' });
+    if (!response?.ok) throw new Error(response?.error || 'Sign-in failed');
+    setAuthUi(response.user);
     await refresh();
-    setStatus('Signed in and synced');
+    setStatus(`Signed in as ${response.user?.displayName || response.user?.email || 'user'}`);
   } catch (err) {
     setStatus(err.message || 'Sign-in failed', true);
   }
@@ -167,7 +167,8 @@ els.btnSignIn.addEventListener('click', async () => {
 
 els.btnSignOut.addEventListener('click', async () => {
   try {
-    await signOut();
+    const response = await chrome.runtime.sendMessage({ type: 'tf-signout' });
+    if (!response?.ok) throw new Error(response?.error || 'Sign-out failed');
     setAuthUi(null);
     setStatus('Signed out (local folders kept)');
   } catch (err) {
@@ -220,25 +221,49 @@ els.btnSync.addEventListener('click', async () => {
   }
 });
 
+async function restoreAuthUi() {
+  const meta = await getAuthMeta();
+  if (meta?.uid || meta?.email || meta?.displayName) {
+    setAuthUi(meta);
+    return meta;
+  }
+  return null;
+}
+
 renderIconGrid();
 refresh();
 onLibraryChange(() => refresh());
+restoreAuthUi();
 
 if (isFirebaseConfigured()) {
   watchAuth(async (user) => {
-    setAuthUi(user);
     if (user) {
+      setAuthUi({
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+      });
       try {
         await pullFromCloud();
         await refresh();
       } catch {
         /* offline / rules */
       }
+    } else {
+      const meta = await getAuthMeta();
+      if (meta) setAuthUi(meta);
+      else setAuthUi(null);
     }
   });
 } else {
-  getAuthMeta().then((meta) => {
-    if (meta) setAuthUi(meta);
-  });
   setStatus('Local mode — add Firebase keys in src/config.js to enable cloud sync');
 }
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.authMeta) {
+    const meta = changes.authMeta.newValue;
+    if (meta) setAuthUi(meta);
+    else setAuthUi(null);
+  }
+});
