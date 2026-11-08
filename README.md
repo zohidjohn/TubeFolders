@@ -69,11 +69,10 @@ Popup → **Export JSON** / **Import JSON** for offline backups (OneDrive, USB, 
 ## Package for Edge Add-ons
 
 ```bash
-npm run build
-cd dist && zip -r ../TubeFolders.zip .
+npm run pack
 ```
 
-Upload `TubeFolders.zip` in Partner Center.
+Uploads `TubeFolders.zip` in Partner Center. The pack script **strips `manifest.key`** (Edge rejects it) and excludes source maps. Local `npm run build` still keeps the key so your unpacked ID stays pinned.
 
 ## Git remote
 

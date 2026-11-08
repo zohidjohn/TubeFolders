@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
+    "pack": "node scripts/pack.mjs",
     "watch": "node scripts/build.mjs && echo 'Watch: re-run npm run build after edits'"
   },
   "keywords": [
