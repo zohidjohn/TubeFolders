@@ -1,0 +1,71 @@
+{
+  "manifest_version": 3,
+  "name": "TubeFolders",
+  "version": "1.0.0",
+  "description": "Group YouTube subscriptions into folders with Lucide icons. Sync with Google + Firestore.",
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "TubeFolders",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": [
+    "storage",
+    "identity"
+  ],
+  "host_permissions": [
+    "https://www.youtube.com/*",
+    "https://accounts.google.com/*",
+    "https://*.googleapis.com/*",
+    "https://*.firebaseio.com/*",
+    "https://*.cloudfunctions.net/*",
+    "https://*.firebaseapp.com/*"
+  ],
+  "oauth2": {
+    "client_id": "YOUR_OAUTH_CLIENT_ID.apps.googleusercontent.com",
+    "scopes": [
+      "openid",
+      "email",
+      "profile"
+    ]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "styles/inject.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "assets/fonts/*"
+      ],
+      "matches": [
+        "https://www.youtube.com/*"
+      ]
+    }
+  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAt/o8YihScPzEKxW7YJK3F0WrtcRSnx1RvL0uoB/945UdZgKZlcS3gcOHrYRqw99sOBPCVRIM93lJ6zAJr9EAMKlt4ssyemIlV7Njh3aeT0Accd2VrJ/eqlP+cQeHnqUOu6HoVfeuTVoM20gn2bjRYBOd7YWQhrZO9SMU8JT2rXz43/MsbryEqJqHysNjrfTt1RiEnP0sKLtKHpF5SpPNRC4Meh8CiASEPTs0n8NuNZZ7QdPgJIYGIx0bcOm+fMjtT1mGO0jHMHi6b3ri7xapJd0D2mUmhDAGLSNjHUcIXwbiWS/EzH8ww1NIO0HDr5SNzUjgmwCdggLc2cEVN2PMvwIDAQAB"
+}

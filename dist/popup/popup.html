@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TubeFolders</title>
+    <link rel="stylesheet" href="../styles/theme.css" />
+    <link rel="stylesheet" href="../styles/popup.css" />
+  </head>
+  <body>
+    <div class="tf-popup">
+      <header class="tf-header">
+        <div class="tf-brand">
+          <div class="tf-brand-mark" aria-hidden="true"></div>
+          <h1>TubeFolders</h1>
+        </div>
+      </header>
+
+      <section id="auth-signed-out">
+        <p class="tf-empty">
+          Sign in with Google to sync folders to Firestore across devices and OS
+          reinstalls. Local folders still work offline.
+        </p>
+        <button type="button" class="tf-btn" id="btn-signin">
+          Sign in with Google
+        </button>
+      </section>
+
+      <section id="auth-signed-in" class="tf-hidden">
+        <div class="tf-user">
+          <img id="user-avatar" alt="" width="28" height="28" />
+          <div class="tf-user-meta">
+            <div class="tf-user-name" id="user-name">User</div>
+            <div class="tf-user-email" id="user-email"></div>
+          </div>
+          <button type="button" class="tf-btn tf-btn-ghost" id="btn-signout">
+            Sign out
+          </button>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="tf-section-title">Folders</h2>
+        <div id="folder-list" class="tf-folder-list"></div>
+        <p id="folder-empty" class="tf-empty tf-hidden">No folders yet.</p>
+      </section>
+
+      <section class="tf-create-panel">
+        <h2 class="tf-section-title">New folder</h2>
+        <input
+          class="tf-input"
+          id="folder-name"
+          type="text"
+          maxlength="48"
+          placeholder="Folder name"
+        />
+        <div id="icon-grid" class="tf-icon-grid" role="listbox" aria-label="Folder icon"></div>
+        <div class="tf-row">
+          <button type="button" class="tf-btn" id="btn-create">Create folder</button>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="tf-section-title">Backup</h2>
+        <div class="tf-actions">
+          <button type="button" class="tf-btn tf-btn-ghost" id="btn-export">
+            Export JSON
+          </button>
+          <button type="button" class="tf-btn tf-btn-ghost" id="btn-import">
+            Import JSON
+          </button>
+          <button type="button" class="tf-btn tf-btn-ghost" id="btn-sync">
+            Sync now
+          </button>
+          <input id="import-file" type="file" accept="application/json,.json" class="tf-hidden" />
+        </div>
+      </section>
+
+      <div class="tf-status" id="status" role="status"></div>
+    </div>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

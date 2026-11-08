@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+    function validLibrary(data) {
+      return data.keys().hasOnly(['folders', 'channels', 'updatedAt'])
+        && data.folders is list
+        && data.channels is map
+        && data.updatedAt is timestamp;
+    }
+
+    match /users/{uid} {
+      allow read, create, update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['email', 'displayName', 'photoURL', 'updatedAt']);
+      allow delete: if isOwner(uid);
+
+      match /data/library {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid) && validLibrary(request.resource.data);
+        allow delete: if isOwner(uid);
+      }
+    }
+  }
+}

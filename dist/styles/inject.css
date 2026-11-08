@@ -1,0 +1,236 @@
+.tf-root {
+  font-family: 'Outfit', sans-serif;
+  color: var(--tf-text, #f5f5f5);
+  --tf-bg: #0a0a0a;
+  --tf-surface: #141414;
+  --tf-border: #2a2a2a;
+  --tf-text: #f5f5f5;
+  --tf-muted: #9a9a9a;
+  --tf-accent: #e11d2e;
+  --tf-accent-hover: #c41122;
+  --tf-radius: 4px;
+}
+
+#tf-sidebar-section {
+  margin: 8px 12px 12px;
+  padding: 0;
+  border: 1px solid var(--tf-border);
+  border-radius: var(--tf-radius);
+  background: var(--tf-surface);
+  overflow: hidden;
+}
+
+.tf-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--tf-border);
+}
+
+.tf-sidebar-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tf-text);
+  margin: 0;
+}
+
+.tf-sidebar-title .tf-mark {
+  width: 10px;
+  height: 10px;
+  background: var(--tf-accent);
+  border-radius: 2px;
+}
+
+.tf-folder {
+  border-top: 1px solid var(--tf-border);
+}
+
+.tf-folder:first-of-type {
+  border-top: none;
+}
+
+.tf-folder-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: var(--tf-text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 560;
+  cursor: pointer;
+  text-align: left;
+}
+
+.tf-folder-toggle:hover {
+  background: #1a1a1a;
+}
+
+.tf-folder-toggle .tf-chevron {
+  margin-left: auto;
+  color: var(--tf-muted);
+}
+
+.tf-folder-channels {
+  display: none;
+  padding: 0 8px 8px;
+}
+
+.tf-folder[data-open='true'] .tf-folder-channels {
+  display: block;
+}
+
+.tf-channel-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  color: var(--tf-text);
+  text-decoration: none;
+  border-radius: var(--tf-radius);
+  font-size: 13px;
+}
+
+.tf-channel-link:hover {
+  background: #1a1a1a;
+}
+
+.tf-channel-link img {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--tf-radius);
+  object-fit: cover;
+  background: #222;
+}
+
+.tf-channel-link span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tf-sidebar-empty {
+  padding: 12px;
+  font-size: 12px;
+  color: var(--tf-muted);
+}
+
+/* Filed / unfiled markers on YouTube default list */
+ytd-guide-entry-renderer.tf-filed,
+yt-guide-entry-renderer.tf-filed {
+  position: relative;
+}
+
+ytd-guide-entry-renderer.tf-filed::before,
+yt-guide-entry-renderer.tf-filed::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  background: var(--tf-accent, #e11d2e);
+  border-radius: 1px;
+  z-index: 1;
+}
+
+ytd-guide-entry-renderer.tf-unfiled,
+yt-guide-entry-renderer.tf-unfiled {
+  opacity: 0.72;
+}
+
+/* Channel page assign panel */
+#tf-channel-panel {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 9999;
+  width: 280px;
+  background: #0a0a0a;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  color: #f5f5f5;
+  font-family: 'Outfit', sans-serif;
+  padding: 12px;
+}
+
+#tf-channel-panel h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+#tf-channel-panel .tf-channel-meta {
+  font-size: 12px;
+  color: #9a9a9a;
+  margin-bottom: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#tf-channel-panel .tf-check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow: auto;
+  margin-bottom: 10px;
+}
+
+#tf-channel-panel label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 6px;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  background: #141414;
+}
+
+#tf-channel-panel input[type='checkbox'] {
+  accent-color: #e11d2e;
+}
+
+#tf-channel-panel .tf-panel-actions {
+  display: flex;
+  gap: 8px;
+}
+
+#tf-channel-panel button {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+#tf-channel-panel .tf-save {
+  background: #e11d2e;
+  color: #fff;
+  flex: 1;
+}
+
+#tf-channel-panel .tf-save:hover {
+  background: #c41122;
+}
+
+#tf-channel-panel .tf-close {
+  background: transparent;
+  border-color: #2a2a2a;
+  color: #f5f5f5;
+}

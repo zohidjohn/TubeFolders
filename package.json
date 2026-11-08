@@ -1,0 +1,20 @@
+{
+  "name": "tubefolders",
+  "version": "1.0.0",
+  "description": "Edge/Chrome extension to group YouTube subscriptions into folders",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "watch": "node scripts/build.mjs && echo 'Watch: re-run npm run build after edits'"
+  },
+  "keywords": ["youtube", "extension", "edge", "folders"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "firebase": "^13.2.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}
