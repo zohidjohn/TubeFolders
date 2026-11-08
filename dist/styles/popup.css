@@ -2,18 +2,18 @@ html,
 body {
   margin: 0;
   padding: 0;
-  width: 340px;
-  min-height: 320px;
+  width: 300px;
+  min-height: 0;
   background: var(--tf-bg);
   color: var(--tf-text);
   font-family: var(--tf-font);
 }
 
 .tf-popup {
-  padding: 16px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .tf-header {
@@ -36,27 +36,45 @@ body {
   letter-spacing: -0.02em;
 }
 
-.tf-brand-mark {
-  width: 22px;
-  height: 22px;
-  background: var(--tf-accent);
-  border-radius: var(--tf-radius);
+.tf-brand-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--tf-accent);
+  flex-shrink: 0;
+}
+
+.tf-lead {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--tf-muted);
+  line-height: 1.4;
+}
+
+.tf-lead strong {
+  color: var(--tf-text);
+  font-weight: 600;
+}
+
+.tf-backup-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .tf-user {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px;
+  padding: 8px;
   background: var(--tf-surface);
   border: 1px solid var(--tf-border);
   border-radius: var(--tf-radius);
 }
 
 .tf-user img {
-  width: 28px;
-  height: 28px;
-  border-radius: var(--tf-radius);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
   object-fit: cover;
   background: #222;
 }

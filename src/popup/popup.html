@@ -11,63 +11,49 @@
     <div class="tf-popup">
       <header class="tf-header">
         <div class="tf-brand">
-          <div class="tf-brand-mark" aria-hidden="true"></div>
+          <svg class="tf-brand-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <path
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"
+            />
+          </svg>
           <h1>TubeFolders</h1>
         </div>
       </header>
 
       <section id="auth-signed-out">
-        <p class="tf-empty">
-          Sign in with Google to sync your folders across devices and OS
-          reinstalls.
-        </p>
-        <button type="button" class="tf-btn" id="btn-signin">
-          Sign in with Google
-        </button>
+        <p class="tf-empty">Sign in once to sync folders across devices.</p>
+        <button type="button" class="tf-btn" id="btn-signin">Sign in with Google</button>
       </section>
 
       <section id="auth-signed-in" class="tf-hidden">
         <div class="tf-user">
-          <img id="user-avatar" alt="" width="28" height="28" />
+          <img id="user-avatar" alt="" width="24" height="24" />
           <div class="tf-user-meta">
             <div class="tf-user-name" id="user-name">User</div>
             <div class="tf-user-email" id="user-email"></div>
           </div>
-          <button type="button" class="tf-btn tf-btn-ghost" id="btn-signout">
-            Sign out
-          </button>
+          <button type="button" class="tf-btn tf-btn-ghost" id="btn-signout">Sign out</button>
         </div>
       </section>
 
       <section class="tf-info-block">
-        <h2 class="tf-section-title">How to use</h2>
-        <ol class="tf-info-list">
-          <li>Open YouTube and the left sidebar.</li>
-          <li>Find <strong>TubeFolders</strong> under Subscriptions.</li>
-          <li>Click <strong>TubeFolders &gt;</strong> to create folders, icons, and colors.</li>
-          <li>On a channel page, use <strong>Add to folder</strong> next to Subscribe.</li>
-        </ol>
-      </section>
-
-      <section>
-        <h2 class="tf-section-title">Status</h2>
+        <p class="tf-lead">
+          Manage folders on YouTube — open the sidebar and click
+          <strong>TubeFolders</strong>.
+        </p>
         <p class="tf-empty" id="folder-summary">Loading…</p>
       </section>
 
-      <section>
-        <h2 class="tf-section-title">Backup</h2>
-        <div class="tf-actions">
-          <button type="button" class="tf-btn tf-btn-ghost" id="btn-export">
-            Export JSON
-          </button>
-          <button type="button" class="tf-btn tf-btn-ghost" id="btn-import">
-            Import JSON
-          </button>
-          <button type="button" class="tf-btn tf-btn-ghost" id="btn-sync">
-            Sync now
-          </button>
-          <input id="import-file" type="file" accept="application/json,.json" class="tf-hidden" />
-        </div>
+      <section class="tf-backup-row">
+        <button type="button" class="tf-btn tf-btn-ghost" id="btn-sync">Sync</button>
+        <button type="button" class="tf-btn tf-btn-ghost" id="btn-export">Export</button>
+        <button type="button" class="tf-btn tf-btn-ghost" id="btn-import">Import</button>
+        <input id="import-file" type="file" accept="application/json,.json" class="tf-hidden" />
       </section>
 
       <div class="tf-status" id="status" role="status"></div>

@@ -23068,18 +23068,18 @@
     const body = page.querySelector(".tf-manager-body");
     if (!body) return;
     body.innerHTML = `
-    <section class="tf-manager-auth">
+    <section class="tf-manager-auth tf-manager-auth-compact">
       ${auth ? `<div class="tf-manager-user">
-              ${auth.photoURL ? `<img src="${escapeHtml(auth.photoURL)}" alt="" />` : ""}
-              <div>
-                <div class="tf-manager-user-name">${escapeHtml(auth.displayName || "Signed in")}</div>
-                <div class="tf-manager-user-email">${escapeHtml(auth.email || "")}</div>
+              ${auth.photoURL ? `<img src="${escapeHtml(auth.photoURL)}" alt="" width="24" height="24" />` : ""}
+              <div class="tf-manager-user-meta">
+                <span class="tf-manager-user-name">${escapeHtml(auth.displayName || "Signed in")}</span>
+                <span class="tf-manager-user-email">${escapeHtml(auth.email || "")}</span>
               </div>
               <button type="button" class="tf-mgr-btn ghost" data-action="signout">Sign out</button>
             </div>` : `<div class="tf-manager-user">
-              <div>
-                <div class="tf-manager-user-name">Not signed in</div>
-                <div class="tf-manager-user-email">Sign in to sync folders to the cloud</div>
+              <div class="tf-manager-user-meta">
+                <span class="tf-manager-user-name">Not signed in</span>
+                <span class="tf-manager-user-email">Sign in to sync folders</span>
               </div>
               <button type="button" class="tf-mgr-btn" data-action="signin">Sign in with Google</button>
             </div>`}
@@ -23221,9 +23221,10 @@
     <div class="tf-manager-page-inner" role="main" aria-label="TubeFolders">
       <header class="tf-manager-header">
         <div class="tf-manager-brand">
+          ${iconHtml("Folder", "tf-icon tf-page-icon")}
           <h1>TubeFolders</h1>
         </div>
-        <button type="button" class="tf-mgr-btn ghost" data-action="close">Back to YouTube</button>
+        <button type="button" class="tf-mgr-btn ghost" data-action="close">Back to Subscriptions</button>
       </header>
       <div class="tf-manager-body"></div>
     </div>
@@ -23284,9 +23285,7 @@
     if (page) page.hidden = true;
     hideYouTubeBrowse(false);
     if (navigateHome && isTubeFoldersRoute()) {
-      history.pushState({}, "", "/");
-      window.dispatchEvent(new PopStateEvent("popstate"));
-      document.dispatchEvent(new CustomEvent("yt-navigate-start"));
+      location.assign("/feed/subscriptions");
     }
   }
   function syncManagerRoute() {
