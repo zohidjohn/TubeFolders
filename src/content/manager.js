@@ -532,12 +532,9 @@ function ensurePageShell() {
   page.innerHTML = `
     <div class="tf-manager-page-inner" role="main" aria-label="TubeFolders">
       <header class="tf-manager-header">
-        <div class="tf-manager-header-left">
-          <div class="tf-manager-brand">
-            ${iconHtml('Folder', 'tf-icon tf-page-icon')}
-            <h1>TubeFolders</h1>
-          </div>
-          <button type="button" class="tf-mgr-btn ghost" data-action="close" data-role="header-back">Back to Subscriptions</button>
+        <div class="tf-manager-brand">
+          ${iconHtml('Folder', 'tf-icon tf-page-icon')}
+          <h1>TubeFolders</h1>
         </div>
         <div class="tf-manager-header-right" data-role="header-right"></div>
       </header>
