@@ -1061,7 +1061,7 @@ yt-guide-entry-renderer.tf-filed::before {
   top: 8px;
   bottom: 8px;
   width: 3px;
-  background: var(--tf-accent, #e11d2e);
+  background: var(--tf-folder-bar, var(--tf-accent, #e11d2e));
   border-radius: 1px;
   z-index: 1;
 }

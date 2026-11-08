@@ -158,13 +158,6 @@
     await setLibrary(lib);
     return lib;
   }
-  function getFiledChannelIds(library) {
-    const ids = /* @__PURE__ */ new Set();
-    for (const folder of library.folders || []) {
-      for (const id of folder.channelIds || []) ids.add(id);
-    }
-    return ids;
-  }
   function onLibraryChange(callback) {
     if (!isExtensionAlive()) return () => {
     };
@@ -23769,43 +23762,47 @@
   function isInsideTubeFolders(el) {
     return Boolean(el.closest("#tf-sidebar-section"));
   }
-  function buildAliasIndex(library) {
-    const filed = getFiledChannelIds(library);
-    const aliases = new Set(filed);
-    for (const [id, meta] of Object.entries(library.channels || {})) {
-      if (!filed.has(id)) continue;
-      aliases.add(id);
-      if (meta?.handle) {
-        aliases.add(meta.handle);
-        aliases.add(meta.handle.replace(/^@/, ""));
-        aliases.add(`@${meta.handle.replace(/^@/, "")}`);
-      }
-      if (meta?.name) aliases.add(meta.name.toLowerCase());
+  function channelMatchesId(channel, id, meta) {
+    if (!channel || !id) return false;
+    if (channel.id === id) return true;
+    if (channel.handle && (channel.handle === id || channel.handle === meta?.handle)) return true;
+    const handle = channel.handle?.replace(/^@/, "") || "";
+    const metaHandle = meta?.handle?.replace(/^@/, "") || "";
+    if (handle && (id === handle || id === `@${handle}` || handle === metaHandle)) return true;
+    if (channel.name && meta?.name && channel.name.toLowerCase() === meta.name.toLowerCase()) {
+      return true;
     }
-    return aliases;
-  }
-  function isChannelFiled(channel, aliases) {
-    if (!channel) return false;
-    if (aliases.has(channel.id)) return true;
-    if (channel.handle && aliases.has(channel.handle)) return true;
-    if (channel.handle && aliases.has(channel.handle.replace(/^@/, ""))) return true;
-    if (channel.name && aliases.has(channel.name.toLowerCase())) return true;
     return false;
+  }
+  function folderColorForChannel(channel, library) {
+    for (const folder of library.folders || []) {
+      for (const id of folder.channelIds || []) {
+        const meta = library.channels?.[id];
+        if (channelMatchesId(channel, id, meta)) {
+          return folder.color || "#e11d2e";
+        }
+      }
+    }
+    return null;
   }
   async function highlightSubscriptions() {
     const library = await getLibrary();
-    const aliases = buildAliasIndex(library);
     for (const entry of guideEntries()) {
       if (isInsideTubeFolders(entry)) continue;
       const channel = extractChannelFromGuideItem(entry);
       if (!channel) {
         entry.classList.remove("tf-filed", "tf-unfiled");
+        entry.style.removeProperty("--tf-folder-bar");
+        delete entry.dataset.tfChannelId;
         continue;
       }
-      const isFiled = isChannelFiled(channel, aliases);
+      const color = folderColorForChannel(channel, library);
+      const isFiled = Boolean(color);
       entry.classList.toggle("tf-filed", isFiled);
       entry.classList.toggle("tf-unfiled", !isFiled);
       entry.dataset.tfChannelId = channel.id;
+      if (isFiled) entry.style.setProperty("--tf-folder-bar", color);
+      else entry.style.removeProperty("--tf-folder-bar");
     }
   }
   function startHighlight() {
