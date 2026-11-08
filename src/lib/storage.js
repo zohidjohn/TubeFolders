@@ -97,6 +97,9 @@ export async function deleteFolder(folderId) {
 export async function setChannelFolders(channel, folderIds) {
   const lib = await getLibrary();
   const id = channel.id;
+  const aliases = new Set(
+    [id, channel.handle, channel.ucId].filter(Boolean)
+  );
   lib.channels[id] = {
     id,
     name: channel.name || lib.channels[id]?.name || 'Channel',
@@ -105,10 +108,12 @@ export async function setChannelFolders(channel, folderIds) {
   };
   const selected = new Set(folderIds);
   for (const folder of lib.folders) {
-    const has = folder.channelIds.includes(id);
-    if (selected.has(folder.id) && !has) folder.channelIds.push(id);
-    if (!selected.has(folder.id) && has) {
-      folder.channelIds = folder.channelIds.filter((cid) => cid !== id);
+    const has = (folder.channelIds || []).some((cid) => aliases.has(cid));
+    // Drop any alias variants, then add canonical id if selected
+    folder.channelIds = (folder.channelIds || []).filter((cid) => !aliases.has(cid));
+    if (selected.has(folder.id)) folder.channelIds.push(id);
+    else if (has && !selected.has(folder.id)) {
+      /* already removed aliases above */
     }
   }
   await setLibrary(lib);

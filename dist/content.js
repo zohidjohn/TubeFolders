@@ -123,6 +123,9 @@
   async function setChannelFolders(channel, folderIds) {
     const lib = await getLibrary();
     const id = channel.id;
+    const aliases = new Set(
+      [id, channel.handle, channel.ucId].filter(Boolean)
+    );
     lib.channels[id] = {
       id,
       name: channel.name || lib.channels[id]?.name || "Channel",
@@ -131,10 +134,10 @@
     };
     const selected = new Set(folderIds);
     for (const folder of lib.folders) {
-      const has = folder.channelIds.includes(id);
-      if (selected.has(folder.id) && !has) folder.channelIds.push(id);
-      if (!selected.has(folder.id) && has) {
-        folder.channelIds = folder.channelIds.filter((cid) => cid !== id);
+      const has = (folder.channelIds || []).some((cid) => aliases.has(cid));
+      folder.channelIds = (folder.channelIds || []).filter((cid) => !aliases.has(cid));
+      if (selected.has(folder.id)) folder.channelIds.push(id);
+      else if (has && !selected.has(folder.id)) {
       }
     }
     await setLibrary(lib);
@@ -22957,37 +22960,47 @@
   }
   function findUcIdInPage() {
     const candidates = [
-      document.querySelector('link[itemprop="url"]')?.href,
       document.querySelector('meta[itemprop="channelId"]')?.content,
+      document.querySelector('link[itemprop="url"]')?.href,
       document.querySelector('meta[property="og:url"]')?.content,
-      ...[...document.querySelectorAll('a[href*="/channel/UC"]')].map((a) => a.href)
+      document.querySelector('link[rel="canonical"]')?.href,
+      document.querySelector('#page-header a[href*="/channel/UC"]')?.href,
+      document.querySelector('yt-page-header-view-model a[href*="/channel/UC"]')?.href
     ].filter(Boolean);
     for (const value of candidates) {
       const m = String(value).match(/\/channel\/(UC[\w-]+)/i) || String(value).match(/^(UC[\w-]+)$/);
       if (m) return m[1];
     }
-    const html = document.documentElement?.innerHTML?.slice(0, 5e5) || "";
-    const browse = html.match(/"browseId"\s*:\s*"(UC[\w-]+)"/);
-    if (browse) return browse[1];
-    const channelId = html.match(/"channelId"\s*:\s*"(UC[\w-]+)"/);
-    if (channelId) return channelId[1];
     return null;
+  }
+  function channelIdentityKeys(channel) {
+    if (!channel) return [];
+    const keys = /* @__PURE__ */ new Set();
+    if (channel.id) keys.add(channel.id);
+    if (channel.handle) keys.add(channel.handle);
+    if (channel.id?.startsWith("@")) keys.add(channel.id);
+    return [...keys];
+  }
+  function folderHasChannel(folder, channel) {
+    const ids = new Set(folder?.channelIds || []);
+    return channelIdentityKeys(channel).some((k) => ids.has(k));
   }
   function extractChannelFromPage() {
     const canonical = document.querySelector('link[rel="canonical"]')?.href || location.href;
-    const parsed = parseChannelFromHref(canonical) || parseChannelFromHref(location.href);
+    const parsed = parseChannelFromHref(location.href) || parseChannelFromHref(canonical);
     if (!parsed) return null;
+    const handle = parsed.handle || (parsed.id.startsWith("@") ? parsed.id : "") || "";
     const ucId = findUcIdInPage();
     const id = ucId || parsed.id;
-    const handle = parsed.handle || (parsed.id.startsWith("@") ? parsed.id : "") || "";
-    const name = document.querySelector('meta[property="og:title"]')?.content || document.querySelector("#channel-name yt-formatted-string")?.textContent || document.querySelector("ytd-channel-name yt-formatted-string")?.textContent || document.querySelector("#page-header h1")?.textContent || handle || "Channel";
-    const avatarUrl = document.querySelector('meta[property="og:image"]')?.content || document.querySelector("#avatar img")?.src || document.querySelector("yt-page-header-renderer img")?.src || "";
+    const name = document.querySelector("#page-header h1")?.textContent || document.querySelector("yt-page-header-view-model h1")?.textContent || document.querySelector('meta[property="og:title"]')?.content || document.querySelector("#channel-name yt-formatted-string")?.textContent || document.querySelector("ytd-channel-name yt-formatted-string")?.textContent || handle || "Channel";
+    const avatarUrl = document.querySelector("#page-header img")?.src || document.querySelector("yt-page-header-view-model img")?.src || document.querySelector('meta[property="og:image"]')?.content || document.querySelector("#avatar img")?.src || "";
     return {
       id,
       name: name.trim(),
       handle,
       avatarUrl,
-      href: ucId ? `https://www.youtube.com/channel/${ucId}` : canonical
+      href: location.href,
+      ucId: ucId || ""
     };
   }
   function isChannelPage() {
@@ -23833,11 +23846,16 @@
   var BTN_ID = "tf-add-folder-btn";
   var WRAP_ID = "tf-add-folder-wrap";
   var openPanelState = null;
+  var lastChannelKey = "";
   function requestSync() {
     safeSendMessage({ type: "tf-sync" });
   }
   function escapeHtml3(str) {
     return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  function channelKey(channel) {
+    if (!channel) return "";
+    return channelIdentityKeys(channel).join("|") || channel.id || "";
   }
   function findSubscribeInsertion() {
     const header = document.querySelector("#page-header yt-flexible-actions-view-model") || document.querySelector(
@@ -23901,11 +23919,13 @@
     const library = await getLibrary();
     const folders = library.folders || [];
     const membership = new Set(
-      folders.filter((f) => (f.channelIds || []).includes(channel.id)).map((f) => f.id)
+      folders.filter((f) => folderHasChannel(f, channel)).map((f) => f.id)
     );
+    const key = channelKey(channel);
     const panel = document.createElement("div");
     panel.id = PANEL_ID;
     panel.className = "tf-root";
+    panel.dataset.channelKey = key;
     panel.setAttribute("role", "dialog");
     panel.setAttribute("aria-label", "Add to folders");
     panel.innerHTML = `
@@ -23919,9 +23939,10 @@
     <div class="tf-check-list">
       ${folders.length ? folders.map((folder) => {
       const color = folder.color || "#e11d2e";
+      const checked = membership.has(folder.id);
       return `
         <label>
-          <input type="checkbox" value="${folder.id}" ${membership.has(folder.id) ? "checked" : ""} />
+          <input type="checkbox" value="${folder.id}" ${checked ? "checked" : ""} />
           <span style="color:${escapeHtml3(color)}">${iconHtml(
         folder.icon || "Folder",
         "tf-icon"
@@ -23946,7 +23967,14 @@
     const onKey = (e) => {
       if (e.key === "Escape") removePanel();
     };
-    openPanelState = { panel, anchor: anchorBtn, onScroll, onPointer, onKey };
+    openPanelState = {
+      panel,
+      anchor: anchorBtn,
+      channelKey: key,
+      onScroll,
+      onPointer,
+      onKey
+    };
     window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", onScroll);
     setTimeout(() => {
@@ -23964,14 +23992,11 @@
       const ids = [...panel.querySelectorAll('input[type="checkbox"]:checked')].map(
         (el) => el.value
       );
-      await setChannelFolders(channel, ids);
+      const fresh = extractChannelFromPage() || channel;
+      await setChannelFolders(fresh, ids);
       requestSync();
-      const saveBtn = panel.querySelector(".tf-save");
-      saveBtn.textContent = "Saved";
       updateButtonLabel(ids.length);
-      setTimeout(() => {
-        removePanel();
-      }, 500);
+      removePanel();
     });
   }
   async function updateButtonLabel(forcedCount) {
@@ -23982,9 +24007,7 @@
       const channel = extractChannelFromPage();
       if (!channel) return;
       const library = await getLibrary();
-      count = library.folders.filter(
-        (f) => (f.channelIds || []).includes(channel.id)
-      ).length;
+      count = library.folders.filter((f) => folderHasChannel(f, channel)).length;
     }
     btn.innerHTML = `${iconHtml("FolderPlus", "tf-icon")} <span class="tf-add-folder-label">${count > 0 ? `Folders (${count})` : "Add to folder"}</span>`;
   }
@@ -23992,14 +24015,28 @@
     if (!isChannelPage()) {
       document.getElementById(WRAP_ID)?.remove();
       removePanel();
+      lastChannelKey = "";
       return false;
     }
-    if (document.getElementById(BTN_ID)) {
+    const channel = extractChannelFromPage();
+    const key = channelKey(channel);
+    if (key && key !== lastChannelKey) {
+      removePanel();
+      lastChannelKey = key;
+    }
+    if (openPanelState && openPanelState.channelKey !== key) {
+      removePanel();
+    }
+    const existing = document.getElementById(BTN_ID);
+    if (existing) {
       const wrap2 = document.getElementById(WRAP_ID);
       const spot2 = findSubscribeInsertion();
-      if (wrap2 && spot2?.anchor && wrap2.previousElementSibling !== spot2.anchor && wrap2.parentElement !== spot2.host) {
+      const staleChannel = wrap2?.dataset?.channelKey && wrap2.dataset.channelKey !== key;
+      if (staleChannel || wrap2 && spot2?.anchor && wrap2.previousElementSibling !== spot2.anchor && wrap2.parentElement !== spot2.host) {
         wrap2.remove();
+        removePanel();
       } else {
+        if (wrap2 && key) wrap2.dataset.channelKey = key;
         await updateButtonLabel();
         return true;
       }
@@ -24009,6 +24046,7 @@
     const wrap = document.createElement("div");
     wrap.id = WRAP_ID;
     wrap.className = "tf-root tf-add-folder-wrap ytFlexibleActionsViewModelAction";
+    if (key) wrap.dataset.channelKey = key;
     const btn = document.createElement("button");
     btn.id = BTN_ID;
     btn.type = "button";
@@ -24040,6 +24078,14 @@
     onLibraryChange(() => {
       if (!isExtensionAlive()) return;
       ensureSubscribeButton();
+    });
+    document.addEventListener("yt-navigate-start", () => {
+      removePanel();
+    });
+    document.addEventListener("yt-navigate-finish", () => {
+      removePanel();
+      lastChannelKey = "";
+      setTimeout(() => ensureSubscribeButton(), 50);
     });
     let tries = 0;
     const timer = setInterval(() => {

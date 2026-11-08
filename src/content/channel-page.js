@@ -3,7 +3,12 @@ import {
   setChannelFolders,
   onLibraryChange,
 } from '../lib/storage.js';
-import { extractChannelFromPage, isChannelPage } from '../lib/youtube.js';
+import {
+  extractChannelFromPage,
+  isChannelPage,
+  folderHasChannel,
+  channelIdentityKeys,
+} from '../lib/youtube.js';
 import { iconHtml } from '../lib/icons.js';
 import { isExtensionAlive, safeSendMessage } from '../lib/extension.js';
 
@@ -11,8 +16,9 @@ const PANEL_ID = 'tf-channel-panel';
 const BTN_ID = 'tf-add-folder-btn';
 const WRAP_ID = 'tf-add-folder-wrap';
 
-/** @type {{ panel: HTMLElement, anchor: HTMLElement, onScroll: () => void, onPointer: (e: Event) => void, onKey: (e: KeyboardEvent) => void } | null} */
+/** @type {{ panel: HTMLElement, anchor: HTMLElement, channelKey: string, onScroll: () => void, onPointer: (e: Event) => void, onKey: (e: KeyboardEvent) => void } | null} */
 let openPanelState = null;
+let lastChannelKey = '';
 
 function requestSync() {
   safeSendMessage({ type: 'tf-sync' });
@@ -26,16 +32,18 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+function channelKey(channel) {
+  if (!channel) return '';
+  return channelIdentityKeys(channel).join('|') || channel.id || '';
+}
+
 /**
- * Signed-in channel header (verified on @UtopiaShowLive):
+ * Signed-in channel header:
  * yt-flexible-actions-view-model
  *   └─ div.ytFlexibleActionsViewModelAction
- *        └─ yt-subscribe-button-view-model.ytSubscribeButtonViewModelHost  ("Subscribed")
- *
- * Insert our button as the next action sibling after that action div.
+ *        └─ yt-subscribe-button-view-model
  */
 function findSubscribeInsertion() {
-  // Prefer page-header subscribe (not shelf / related channel subscribe)
   const header =
     document.querySelector('#page-header yt-flexible-actions-view-model') ||
     document.querySelector(
@@ -109,15 +117,18 @@ async function openAssignPanel(anchorBtn) {
   const channel = extractChannelFromPage();
   if (!channel || !anchorBtn) return;
 
+  // Always re-read library so checks match THIS channel only
   const library = await getLibrary();
   const folders = library.folders || [];
   const membership = new Set(
-    folders.filter((f) => (f.channelIds || []).includes(channel.id)).map((f) => f.id)
+    folders.filter((f) => folderHasChannel(f, channel)).map((f) => f.id)
   );
 
+  const key = channelKey(channel);
   const panel = document.createElement('div');
   panel.id = PANEL_ID;
   panel.className = 'tf-root';
+  panel.dataset.channelKey = key;
   panel.setAttribute('role', 'dialog');
   panel.setAttribute('aria-label', 'Add to folders');
   panel.innerHTML = `
@@ -134,11 +145,10 @@ async function openAssignPanel(anchorBtn) {
           ? folders
               .map((folder) => {
                 const color = folder.color || '#e11d2e';
+                const checked = membership.has(folder.id);
                 return `
         <label>
-          <input type="checkbox" value="${folder.id}" ${
-                  membership.has(folder.id) ? 'checked' : ''
-                } />
+          <input type="checkbox" value="${folder.id}" ${checked ? 'checked' : ''} />
           <span style="color:${escapeHtml(color)}">${iconHtml(
                   folder.icon || 'Folder',
                   'tf-icon'
@@ -158,7 +168,6 @@ async function openAssignPanel(anchorBtn) {
   document.documentElement.appendChild(panel);
   positionPanel(panel, anchorBtn);
 
-  // Any page scroll closes the panel — don't try to stick to the header
   const onScroll = () => removePanel();
   const onPointer = (e) => {
     const t = e.target;
@@ -170,10 +179,16 @@ async function openAssignPanel(anchorBtn) {
     if (e.key === 'Escape') removePanel();
   };
 
-  openPanelState = { panel, anchor: anchorBtn, onScroll, onPointer, onKey };
+  openPanelState = {
+    panel,
+    anchor: anchorBtn,
+    channelKey: key,
+    onScroll,
+    onPointer,
+    onKey,
+  };
   window.addEventListener('scroll', onScroll, true);
   window.addEventListener('resize', onScroll);
-  // next tick so the opening click does not immediately close
   setTimeout(() => {
     if (openPanelState?.panel === panel) {
       document.addEventListener('pointerdown', onPointer, true);
@@ -190,14 +205,12 @@ async function openAssignPanel(anchorBtn) {
     const ids = [...panel.querySelectorAll('input[type="checkbox"]:checked')].map(
       (el) => el.value
     );
-    await setChannelFolders(channel, ids);
+    // Re-read channel at save time in case SPA updated mid-open
+    const fresh = extractChannelFromPage() || channel;
+    await setChannelFolders(fresh, ids);
     requestSync();
-    const saveBtn = panel.querySelector('.tf-save');
-    saveBtn.textContent = 'Saved';
     updateButtonLabel(ids.length);
-    setTimeout(() => {
-      removePanel();
-    }, 500);
+    removePanel();
   });
 }
 
@@ -209,9 +222,7 @@ async function updateButtonLabel(forcedCount) {
     const channel = extractChannelFromPage();
     if (!channel) return;
     const library = await getLibrary();
-    count = library.folders.filter((f) =>
-      (f.channelIds || []).includes(channel.id)
-    ).length;
+    count = library.folders.filter((f) => folderHasChannel(f, channel)).length;
   }
   btn.innerHTML = `${iconHtml('FolderPlus', 'tf-icon')} <span class="tf-add-folder-label">${
     count > 0 ? `Folders (${count})` : 'Add to folder'
@@ -222,21 +233,38 @@ export async function ensureSubscribeButton() {
   if (!isChannelPage()) {
     document.getElementById(WRAP_ID)?.remove();
     removePanel();
+    lastChannelKey = '';
     return false;
   }
 
-  if (document.getElementById(BTN_ID)) {
-    // Ensure it is still next to the header subscribe control
+  const channel = extractChannelFromPage();
+  const key = channelKey(channel);
+
+  // Channel switched (SPA) → always clear the popup
+  if (key && key !== lastChannelKey) {
+    removePanel();
+    lastChannelKey = key;
+  }
+  if (openPanelState && openPanelState.channelKey !== key) {
+    removePanel();
+  }
+
+  const existing = document.getElementById(BTN_ID);
+  if (existing) {
     const wrap = document.getElementById(WRAP_ID);
     const spot = findSubscribeInsertion();
+    const staleChannel = wrap?.dataset?.channelKey && wrap.dataset.channelKey !== key;
     if (
-      wrap &&
-      spot?.anchor &&
-      wrap.previousElementSibling !== spot.anchor &&
-      wrap.parentElement !== spot.host
+      staleChannel ||
+      (wrap &&
+        spot?.anchor &&
+        wrap.previousElementSibling !== spot.anchor &&
+        wrap.parentElement !== spot.host)
     ) {
       wrap.remove();
+      removePanel();
     } else {
+      if (wrap && key) wrap.dataset.channelKey = key;
       await updateButtonLabel();
       return true;
     }
@@ -248,11 +276,11 @@ export async function ensureSubscribeButton() {
   const wrap = document.createElement('div');
   wrap.id = WRAP_ID;
   wrap.className = 'tf-root tf-add-folder-wrap ytFlexibleActionsViewModelAction';
+  if (key) wrap.dataset.channelKey = key;
 
   const btn = document.createElement('button');
   btn.id = BTN_ID;
   btn.type = 'button';
-  // Same yt-spec tonal classes as the Subscribed button
   btn.className = [
     'tf-add-folder-btn',
     'ytSpecButtonShapeNextHost',
@@ -283,6 +311,15 @@ export function startChannelPanel() {
   onLibraryChange(() => {
     if (!isExtensionAlive()) return;
     ensureSubscribeButton();
+  });
+
+  document.addEventListener('yt-navigate-start', () => {
+    removePanel();
+  });
+  document.addEventListener('yt-navigate-finish', () => {
+    removePanel();
+    lastChannelKey = '';
+    setTimeout(() => ensureSubscribeButton(), 50);
   });
 
   let tries = 0;
